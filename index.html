@@ -207,24 +207,6 @@ textarea {
 
 <h1>生物記録アプリ</h1>
 
-
-<div id="loginArea" class="form-area">
-    <h2>自分専用ログイン</h2>
-    <p>PC・スマホで同じ生物データを使うため、Firebaseにログインしてください。</p>
-    <input type="email" id="email" placeholder="メールアドレス">
-    <input type="password" id="password" placeholder="パスワード">
-    <button type="button" onclick="login()">ログイン</button>
-    <p id="loginMessage"></p>
-    
-</div>
-
-<div id="userArea" class="form-area hidden">
-    <b id="userEmail"></b>
-    <button type="button" onclick="logout()">ログアウト</button>
-    <p id="syncMessage">クラウドと同期しています。</p>
-</div>
-
-
 <button onclick="showForm()">
 ＋ 新しい生物を登録
 </button>
@@ -519,10 +501,9 @@ placeholder="この生物についての解説"
 
 <div style="margin-top:15px;">
 
-<button type="button" id="saveButton">
+<button onclick="saveData()">
 保存
 </button>
-<p id="saveMessage" style="margin-top:12px;font-weight:bold;"></p>
 
 <button onclick="hideForm()">
 キャンセル
@@ -591,41 +572,7 @@ placeholder="この生物についての解説"
 </div>
 
 
-<script type="module">
-
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
-import {
-    getAuth,
-    signInWithEmailAndPassword,
-    onAuthStateChanged,
-    signOut
-} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
-import {
-    getFirestore,
-    doc,
-    getDoc,
-    setDoc
-} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
-
-const firebaseConfig = {
-    apiKey: "AIzaSyB5XI3BQiNIaY2X_bglVfFAvpL4D6sjBuw",
-    authDomain: "organism-ap.firebaseapp.com",
-    projectId: "organism-ap",
-    storageBucket: "organism-ap.firebasestorage.app",
-    messagingSenderId: "351811027836",
-    appId: "1:351811027836:web:9cb5d92ae137dfa2265af9",
-    measurementId: "G-J3GFZJCH7S"
-};
-
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-
-
-let currentUser = null;
-let savingToCloud = false;
-
-
+<script>
 
 
 /* =========================
@@ -698,17 +645,12 @@ function changeSort() {
    indexも一緒に保持する
 ========================= */
 
-function getOrganisms() {
-    return JSON.parse(localStorage.getItem("organisms")) || [];
-}
-
-function setOrganisms(organisms) {
-    localStorage.setItem("organisms", JSON.stringify(organisms));
-}
-
 function getEntries() {
 
-    const organisms = getOrganisms();
+    const organisms =
+        JSON.parse(
+            localStorage.getItem("organisms")
+        ) || [];
 
     return organisms.map(
         function(organism, index) {
@@ -1186,7 +1128,8 @@ function saveData() {
 
     if (!japaneseName) {
 
-        document.getElementById("saveMessage").textContent = "和名を入力してください。";
+        alert("和名を入力してください。");
+
         return;
 
     }
@@ -1194,7 +1137,8 @@ function saveData() {
 
     if (!scientificName) {
 
-        document.getElementById("saveMessage").textContent = "学名を入力してください。";
+        alert("学名を入力してください。");
+
         return;
 
     }
@@ -1202,7 +1146,8 @@ function saveData() {
 
     if (!selectedColor) {
 
-        document.getElementById("saveMessage").textContent = "色を1つ選択してください。";
+        alert("色を選択してください。");
+
         return;
 
     }
@@ -1301,31 +1246,54 @@ function saveData() {
 
 function actuallySave(organism) {
 
-    let organisms = getOrganisms();
+    let organisms =
+        JSON.parse(
+            localStorage.getItem(
+                "organisms"
+            )
+        ) || [];
+
 
     if (editingIndex >= 0) {
-        organisms[editingIndex] = organism;
+
+        organisms[editingIndex] =
+            organism;
+
     } else {
-        organisms.push(organism);
+
+        organisms.push(
+            organism
+        );
+
     }
+
 
     try {
-        setOrganisms(organisms);
-        editingIndex = -1;
-        hideForm();
-        showList();
+
+        localStorage.setItem(
+            "organisms",
+            JSON.stringify(organisms)
+        );
+
     } catch (error) {
-        console.error("local save error:", error);
-        alert("PCへの保存に失敗しました。\\n" + (error.message || error));
+
+        alert(
+            "保存できませんでした。\n写真の容量が大きすぎる可能性があります。"
+        );
+
         return;
+
     }
 
-    const saveMessage = document.getElementById("saveMessage");
-    if (saveMessage) saveMessage.textContent = "保存しました。";
 
-    if (currentUser) {
-        saveCloudData(true);
-    }
+    editingIndex = -1;
+
+    hideForm();
+
+    showList();
+
+    alert("保存しました。");
+
 }
 
 
@@ -2652,179 +2620,6 @@ function deleteData(index) {
 
 }
 
-
-
-/* =========================
-   Firebase ログイン・同期
-========================= */
-
-async function login() {
-
-    const email = document.getElementById("email").value.trim();
-    const password = document.getElementById("password").value;
-    const message = document.getElementById("loginMessage");
-
-    if (!email || !password) {
-        message.textContent = "メールアドレスとパスワードを入力してください。";
-        return;
-    }
-
-    message.textContent = "ログインしています…";
-
-    try {
-        await signInWithEmailAndPassword(auth, email, password);
-        message.textContent = "ログイン成功。画面を切り替えています…";
-    } catch (error) {
-        console.error(error);
-        const code = error && error.code ? error.code : "コードなし";
-        const detail = error && error.message ? error.message : String(error);
-        message.textContent = "ログインできませんでした。\nFirebaseエラー: " + code + "\n詳細: " + detail;
-    }
-}
-
-async function logout() {
-    await signOut(auth);
-}
-
-function removePhotosForCloud(organisms) {
-    return organisms.map(function(organism) {
-        const copy = JSON.parse(JSON.stringify(organism));
-        copy.photo = "";
-        return copy;
-    });
-}
-
-async function saveCloudData(showError = false) {
-
-    if (!currentUser || savingToCloud) return false;
-
-    savingToCloud = true;
-
-    try {
-        const ref = doc(db, "organisms", currentUser.uid);
-        await setDoc(ref, {
-            organisms: removePhotosForCloud(getOrganisms())
-        });
-
-        document.getElementById("syncMessage").textContent =
-            "クラウドと同期済みです。";
-        return true;
-
-    } catch (error) {
-        console.error("Firestore save error:", error);
-        const code = error && error.code ? error.code : "unknown";
-        const detail = error && error.message ? error.message : String(error);
-
-        document.getElementById("syncMessage").textContent =
-            "クラウドへの保存に失敗しました（" + code + "）。";
-
-        if (showError) {
-            alert("PCには保存できました。\\n\\nFirebaseへの同期だけ失敗しました。\\n\\nエラーコード：" + code + "\\n詳細：" + detail);
-        }
-        return false;
-
-    } finally {
-        savingToCloud = false;
-    }
-}
-
-async function loadCloudData() {
-
-    if (!currentUser) return;
-
-    const message = document.getElementById("syncMessage");
-    message.textContent = "クラウドからデータを読み込んでいます…";
-
-    try {
-        const ref = doc(db, "organisms", currentUser.uid);
-        const snapshot = await getDoc(ref);
-
-        if (snapshot.exists()) {
-
-            const data = snapshot.data();
-            const cloud = Array.isArray(data.organisms)
-                ? data.organisms
-                : [];
-
-            const local = getOrganisms();
-
-            const merged = cloud.map(function(item, index) {
-                const copy = JSON.parse(JSON.stringify(item));
-
-                if (!copy.photo && local[index] && local[index].photo) {
-                    copy.photo = local[index].photo;
-                }
-
-                return copy;
-            });
-
-            setOrganisms(merged);
-            await saveCloudData();
-
-        } else {
-
-            // 初回ログイン：現在のPCのデータをクラウドへ保存
-            await saveCloudData();
-        }
-
-        message.textContent = "クラウドと同期済みです。";
-        showList();
-
-    } catch (error) {
-        console.error(error);
-        message.textContent = "クラウドとの同期に失敗しました。";
-        alert("クラウドとの同期に失敗しました。\nインターネット接続とFirebaseの設定を確認してください。");
-    }
-}
-
-// HTMLのonclickから呼び出せるように公開
-window.login = login;
-window.logout = logout;
-window.showForm = showForm;
-window.hideForm = hideForm;
-window.selectColor = selectColor;
-window.addCustomDistribution = addCustomDistribution;
-window.previewPhoto = previewPhoto;
-
-// 保存ボタンを確実にJavaScriptへ接続
-window.addEventListener("DOMContentLoaded", function() {
-    const saveButton = document.getElementById("saveButton");
-    if (saveButton) {
-        saveButton.addEventListener("click", function(event) {
-            event.preventDefault();
-            saveData();
-        });
-    }
-});
-window.saveData = saveData;
-window.hideDetail = hideDetail;
-window.hideTaxonomyPage = hideTaxonomyPage;
-window.hideDistributionPage = hideDistributionPage;
-
-onAuthStateChanged(auth, async function(user) {
-
-    currentUser = user;
-
-    const loginArea = document.getElementById("loginArea");
-    const userArea = document.getElementById("userArea");
-
-    if (user) {
-
-        loginArea.classList.add("hidden");
-        userArea.classList.remove("hidden");
-
-        document.getElementById("userEmail").textContent =
-            "ログイン中：" + user.email;
-
-        await loadCloudData();
-
-    } else {
-
-        loginArea.classList.remove("hidden");
-        userArea.classList.add("hidden");
-        showList();
-    }
-});
 
 /* =========================
    初期表示
