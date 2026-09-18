@@ -1,0 +1,3029 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>生物記録アプリ</title>
+
+<style>
+
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+    background: #f5f5f5;
+}
+
+h1 {
+    margin-top: 0;
+}
+
+button {
+    padding: 8px 14px;
+    margin: 4px;
+    border: 1px solid #999;
+    border-radius: 6px;
+    background: white;
+    cursor: pointer;
+}
+
+button:hover {
+    background: #eeeeee;
+}
+
+input,
+select,
+textarea {
+    padding: 8px;
+    margin: 5px 0;
+    width: 100%;
+    max-width: 500px;
+    box-sizing: border-box;
+    font-size: 16px;
+}
+
+textarea {
+    height: 120px;
+}
+
+.container {
+    max-width: 1200px;
+    margin: auto;
+}
+
+.form-area,
+.detail-area,
+.search-area {
+    background: white;
+    padding: 20px;
+    margin-top: 20px;
+    border-radius: 10px;
+}
+
+.hidden {
+    display: none;
+}
+
+/* =========================
+   生物一覧
+========================= */
+
+.organism-row {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    width: 100%;
+    min-height: 100px;
+    padding: 10px;
+    margin-bottom: 10px;
+    background: white;
+    border-radius: 10px;
+    box-sizing: border-box;
+    overflow-x: auto;
+}
+
+.organism-photo {
+    width: 100px;
+    height: 100px;
+    object-fit: cover;
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+
+.no-photo {
+    width: 100px;
+    height: 100px;
+    background: #ddd;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+
+.japanese-name {
+    width: 220px;
+    min-width: 220px;
+    font-size: 20px;
+    font-weight: bold;
+}
+
+.scientific-name {
+    flex: 1;
+    min-width: 220px;
+    font-style: italic;
+    font-size: 17px;
+}
+
+.color-area {
+    width: 120px;
+    min-width: 120px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.color-circle {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    border: 1px solid #777;
+    display: inline-block;
+}
+
+.action-area {
+    white-space: nowrap;
+}
+
+/* =========================
+   色選択
+========================= */
+
+.color-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin: 10px 0;
+}
+
+.color-button {
+    min-width: 80px;
+}
+
+.color-button.selected {
+    border: 3px solid #000;
+}
+
+/* =========================
+   分布・分類
+========================= */
+
+.tag {
+    display: inline-block;
+    padding: 6px 10px;
+    margin: 4px;
+    border-radius: 20px;
+    background: #eeeeee;
+    border: 1px solid #aaa;
+}
+
+.clickable-tag {
+    cursor: pointer;
+}
+
+.clickable-tag:hover {
+    background: #dddddd;
+}
+
+.remove-tag {
+    margin-left: 5px;
+    padding: 2px 6px;
+}
+
+/* =========================
+   スマートフォン
+========================= */
+
+@media (max-width: 700px) {
+
+    body {
+        padding: 10px;
+    }
+
+    .organism-row {
+        min-width: 850px;
+    }
+
+}
+
+
+/* =========================
+   和名・学名検索
+========================= */
+.organism-search-box {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    margin: 15px 0;
+    flex-wrap: wrap;
+}
+
+.organism-search-box input {
+    flex: 1;
+    min-width: 220px;
+    box-sizing: border-box;
+}
+
+.organism-search-result {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+    padding: 12px;
+    margin: 8px 0;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+}
+
+.organism-search-result em {
+    color: #555;
+}
+
+</style>
+</head>
+
+
+<body>
+
+<div class="container">
+
+<h1>生物記録アプリ</h1>
+
+
+<div id="loginArea" class="form-area">
+    <h2>自分専用ログイン</h2>
+    <p>PC・スマホで同じ生物データを使うため、Firebaseにログインしてください。</p>
+    <input type="email" id="email" placeholder="メールアドレス">
+    <input type="password" id="password" placeholder="パスワード">
+    <button type="button" onclick="login()">ログイン</button>
+    <p id="loginMessage"></p>
+    
+</div>
+
+<div id="userArea" class="form-area hidden">
+    <b id="userEmail"></b>
+    <button type="button" onclick="logout()">ログアウト</button>
+    <p id="syncMessage">クラウドと同期しています。</p>
+</div>
+
+
+<button onclick="showForm()">
+＋ 新しい生物を登録
+</button>
+
+
+<!-- =========================
+     並び替え
+========================= -->
+
+<div style="margin-top:20px;">
+
+<label>
+<b>並び順：</b>
+</label>
+
+<select id="sortSelect" onchange="changeSort()">
+
+<option value="registered">
+登録順
+</option>
+
+<option value="japaneseAsc">
+和名：50音順
+</option>
+
+<option value="japaneseDesc">
+和名：50音逆順
+</option>
+
+<option value="scientificAsc">
+学名：50音順
+</option>
+
+<option value="scientificDesc">
+学名：50音逆順
+</option>
+
+</select>
+
+</div>
+
+
+<!-- =========================
+     分類から探す
+========================= -->
+
+<div class="search-area">
+
+<h2>分類から探す</h2>
+
+<div id="taxonomyButtons">
+
+まだ分類が登録されていません。
+
+</div>
+
+</div>
+
+
+<!-- =========================
+     生物一覧
+========================= -->
+
+<div id="listArea">
+
+<h2>生物一覧</h2>
+
+</div>
+
+
+<!-- =========================
+     登録フォーム
+========================= -->
+
+<div id="form" class="form-area hidden">
+
+<h2 id="formTitle">
+新しい生物を登録
+</h2>
+
+
+<h3>写真</h3>
+
+<input
+type="file"
+id="photo"
+accept="image/*"
+onchange="previewPhoto()"
+>
+
+<div id="photoPreview"></div>
+
+
+<h3>和名</h3>
+
+<input
+type="text"
+id="japaneseName"
+placeholder="例：カブトムシ"
+>
+
+
+<h3>学名</h3>
+
+<input
+type="text"
+id="scientificName"
+placeholder="例：Trypoxylus dichotomus"
+>
+
+
+<h3>色</h3>
+
+<div class="color-buttons">
+
+<button
+type="button"
+class="color-button"
+data-color="黄色"
+onclick="selectColor('黄色')">
+黄色
+</button>
+
+<button
+type="button"
+class="color-button"
+data-color="オレンジ"
+onclick="selectColor('オレンジ')">
+オレンジ
+</button>
+
+<button
+type="button"
+class="color-button"
+data-color="青"
+onclick="selectColor('青')">
+青
+</button>
+
+<button
+type="button"
+class="color-button"
+data-color="赤"
+onclick="selectColor('赤')">
+赤
+</button>
+
+<button
+type="button"
+class="color-button"
+data-color="緑"
+onclick="selectColor('緑')">
+緑
+</button>
+
+<button
+type="button"
+class="color-button"
+data-color="紫"
+onclick="selectColor('紫')">
+紫
+</button>
+
+<button
+type="button"
+class="color-button"
+data-color="黄緑"
+onclick="selectColor('黄緑')">
+黄緑
+</button>
+
+<button
+type="button"
+class="color-button"
+data-color="灰色"
+onclick="selectColor('灰色')">
+灰色
+</button>
+
+<button
+type="button"
+class="color-button"
+data-color="黒"
+onclick="selectColor('黒')">
+黒
+</button>
+
+<button
+type="button"
+class="color-button"
+data-color="白"
+onclick="selectColor('白')">
+白
+</button>
+
+</div>
+
+
+<!-- =========================
+     分類
+========================= -->
+
+<h3>分類</h3>
+
+<label>界</label>
+
+<input
+type="text"
+id="kingdom"
+placeholder="例：動物界"
+>
+
+
+<label>門</label>
+
+<input
+type="text"
+id="phylum"
+placeholder="例：節足動物門"
+>
+
+
+<label>綱</label>
+
+<input
+type="text"
+id="className"
+placeholder="例：昆虫綱"
+>
+
+
+<label>目</label>
+
+<input
+type="text"
+id="order"
+placeholder="例：甲虫目"
+>
+
+
+<label>科</label>
+
+<input
+type="text"
+id="family"
+placeholder="例：コガネムシ科"
+>
+
+
+<!-- =========================
+     分布
+     国・都道府県・島の選択欄は削除
+========================= -->
+
+<h3>分布</h3>
+
+<p>
+国・都道府県・島などを自由に入力してください。
+</p>
+
+<input
+type="text"
+id="customDistribution"
+placeholder="例：東京都、佐渡島、日本"
+>
+
+<br>
+
+<button
+type="button"
+onclick="addCustomDistribution()">
+＋ 分布を追加
+</button>
+
+
+<h4>登録する分布</h4>
+
+<div id="selectedDistributions">
+
+まだ登録されていません。
+
+</div>
+
+
+<h3>解説</h3>
+
+<textarea
+id="description"
+placeholder="この生物についての解説"
+></textarea>
+
+
+<div style="margin-top:15px;">
+
+<button type="button" id="saveButton">
+保存
+</button>
+<p id="saveMessage" style="margin-top:12px;font-weight:bold;"></p>
+
+<button onclick="hideForm()">
+キャンセル
+</button>
+
+</div>
+
+</div>
+
+
+<!-- =========================
+     詳細
+========================= -->
+
+<div id="detail" class="detail-area hidden">
+
+<h2>生物詳細</h2>
+
+<div id="detailContent"></div>
+
+<button onclick="hideDetail()">
+戻る
+</button>
+
+</div>
+
+
+<!-- =========================
+     分類検索ページ
+========================= -->
+
+<div id="taxonomyPage" class="search-area hidden">
+
+<h2 id="taxonomyTitle">
+分類
+</h2>
+
+<div id="taxonomyResult"></div>
+
+<button onclick="hideTaxonomyPage()">
+戻る
+</button>
+
+</div>
+
+
+<!-- =========================
+     分布検索ページ
+========================= -->
+
+<div id="distributionPage" class="search-area hidden">
+
+<h2 id="distributionTitle">
+分布
+</h2>
+
+<div id="distributionResult"></div>
+
+<button onclick="hideDistributionPage()">
+戻る
+</button>
+
+</div>
+
+
+</div>
+
+
+<script type="module">
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
+import {
+    getAuth,
+    signInWithEmailAndPassword,
+    onAuthStateChanged,
+    signOut
+} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
+import {
+    getFirestore,
+    doc,
+    getDoc,
+    setDoc,
+    deleteDoc
+} from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+
+const firebaseConfig = {
+    apiKey: "AIzaSyB5XI3BQiNIaY2X_bglVfFAvpL4D6sjBuw",
+    authDomain: "organism-ap.firebaseapp.com",
+    projectId: "organism-ap",
+    storageBucket: "organism-ap.firebasestorage.app",
+    messagingSenderId: "351811027836",
+    appId: "1:351811027836:web:9cb5d92ae137dfa2265af9",
+    measurementId: "G-J3GFZJCH7S"
+};
+
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+
+let currentUser = null;
+let savingToCloud = false;
+
+
+
+
+/* =========================
+   変数
+========================= */
+
+let editingIndex = -1;
+
+let selectedPhoto = "";
+
+let selectedDistributions = [];
+
+let selectedColor = "";
+
+let currentSort =
+    localStorage.getItem("organismSort")
+    || "registered";
+
+
+/* =========================
+   色
+========================= */
+
+const colorValues = {
+
+    "黄色": "#FFD700",
+
+    "オレンジ": "#FFA500",
+
+    "青": "#3498DB",
+
+    "赤": "#E74C3C",
+
+    "緑": "#2ECC71",
+
+    "紫": "#9B59B6",
+
+    "黄緑": "#9ACD32",
+
+    "灰色": "#808080",
+
+    "黒": "#000000",
+
+    "白": "#FFFFFF"
+
+};
+
+
+/* =========================
+   並び替え
+========================= */
+
+function changeSort() {
+
+    currentSort =
+        document.getElementById("sortSelect").value;
+
+    localStorage.setItem(
+        "organismSort",
+        currentSort
+    );
+
+    showList();
+
+}
+
+
+/* =========================
+   データ取得
+   indexも一緒に保持する
+========================= */
+
+function getOrganisms() {
+    return JSON.parse(localStorage.getItem("organisms")) || [];
+}
+
+function setOrganisms(organisms) {
+    localStorage.setItem("organisms", JSON.stringify(organisms));
+}
+
+function getEntries() {
+
+    const organisms = getOrganisms();
+
+    return organisms.map(
+        function(organism, index) {
+
+            return {
+                organism: organism,
+                index: index
+            };
+
+        }
+    );
+
+}
+
+
+/* =========================
+   並び替え
+========================= */
+
+function sortEntries(entries) {
+
+    const result = entries.slice();
+
+    if (currentSort === "japaneseAsc") {
+
+        result.sort(function(a, b) {
+
+            return (a.organism.japaneseName || "")
+                .localeCompare(
+                    b.organism.japaneseName || "",
+                    "ja"
+                );
+
+        });
+
+    }
+
+
+    if (currentSort === "japaneseDesc") {
+
+        result.sort(function(a, b) {
+
+            return (b.organism.japaneseName || "")
+                .localeCompare(
+                    a.organism.japaneseName || "",
+                    "ja"
+                );
+
+        });
+
+    }
+
+
+    if (currentSort === "scientificAsc") {
+
+        result.sort(function(a, b) {
+
+            return (a.organism.scientificName || "")
+                .localeCompare(
+                    b.organism.scientificName || "",
+                    "ja"
+                );
+
+        });
+
+    }
+
+
+    if (currentSort === "scientificDesc") {
+
+        result.sort(function(a, b) {
+
+            return (b.organism.scientificName || "")
+                .localeCompare(
+                    a.organism.scientificName || "",
+                    "ja"
+                );
+
+        });
+
+    }
+
+
+    return result;
+
+}
+
+
+/* =========================
+   色を選択
+========================= */
+
+function selectColor(color) {
+
+    selectedColor = color;
+
+    const buttons =
+        document.querySelectorAll(
+            ".color-button"
+        );
+
+    buttons.forEach(function(button) {
+
+        button.classList.remove("selected");
+
+        if (
+            button.dataset.color === color
+        ) {
+
+            button.classList.add("selected");
+
+        }
+
+    });
+
+}
+
+
+/* =========================
+   写真プレビュー
+========================= */
+
+function previewPhoto() {
+
+    const file =
+        document.getElementById("photo").files[0];
+
+    if (!file) {
+
+        return;
+
+    }
+
+    const reader =
+        new FileReader();
+
+    reader.onload = function(e) {
+
+        const img =
+            document.createElement("img");
+
+        img.src = e.target.result;
+
+        img.style.maxWidth = "300px";
+
+        img.style.maxHeight = "300px";
+
+        img.style.objectFit = "contain";
+
+        document
+            .getElementById("photoPreview")
+            .innerHTML = "";
+
+        document
+            .getElementById("photoPreview")
+            .appendChild(img);
+
+    };
+
+    reader.readAsDataURL(file);
+
+}
+
+
+/* =========================
+   写真を圧縮
+========================= */
+
+function compressImage(file, callback) {
+
+    const reader = new FileReader();
+
+    reader.onload = function(e) {
+
+        const img = new Image();
+
+        img.onload = function() {
+
+            /*
+             * できるだけ小さくする。
+             * 通常は長辺300px・JPEG品質0.20。
+             * それでも大きい場合は250px・品質0.18。
+             */
+            const settings = [
+                { maxSize: 300, quality: 0.20 },
+                { maxSize: 250, quality: 0.18 }
+            ];
+
+            let compressed = "";
+
+            for (const setting of settings) {
+
+                let width = img.width;
+                let height = img.height;
+                const maxSize = setting.maxSize;
+
+                if (width > height) {
+                    if (width > maxSize) {
+                        height = height * maxSize / width;
+                        width = maxSize;
+                    }
+                } else {
+                    if (height > maxSize) {
+                        width = width * maxSize / height;
+                        height = maxSize;
+                    }
+                }
+
+                width = Math.max(1, Math.round(width));
+                height = Math.max(1, Math.round(height));
+
+                const canvas = document.createElement("canvas");
+                canvas.width = width;
+                canvas.height = height;
+
+                const ctx = canvas.getContext("2d", { alpha: false });
+                ctx.drawImage(img, 0, 0, width, height);
+
+                compressed = canvas.toDataURL("image/jpeg", setting.quality);
+
+                if (compressed.length <= 180000) {
+                    break;
+                }
+            }
+
+            callback(compressed);
+        };
+
+        img.src = e.target.result;
+    };
+
+    reader.readAsDataURL(file);
+}
+
+/* =========================
+   分布を追加
+========================= */
+
+function addCustomDistribution() {
+
+    const input =
+        document.getElementById(
+            "customDistribution"
+        );
+
+    const value =
+        input.value.trim();
+
+    if (!value) {
+
+        alert("分布を入力してください。");
+
+        return;
+
+    }
+
+    addDistributionName(value);
+
+    input.value = "";
+
+}
+
+
+/* =========================
+   分布名を登録
+========================= */
+
+function addDistributionName(name) {
+
+    if (
+        !selectedDistributions.includes(name)
+    ) {
+
+        selectedDistributions.push(name);
+
+    }
+
+    showSelectedDistributions();
+
+}
+
+
+/* =========================
+   登録分布表示
+========================= */
+
+function showSelectedDistributions() {
+
+    const area =
+        document.getElementById(
+            "selectedDistributions"
+        );
+
+    area.innerHTML = "";
+
+
+    if (
+        selectedDistributions.length === 0
+    ) {
+
+        area.innerHTML =
+            "まだ登録されていません。";
+
+        return;
+
+    }
+
+
+    selectedDistributions.forEach(
+        function(name, index) {
+
+            const span =
+                document.createElement("span");
+
+            span.className = "tag";
+
+            span.textContent = name;
+
+
+            const remove =
+                document.createElement("button");
+
+            remove.textContent = "×";
+
+            remove.className =
+                "remove-tag";
+
+
+            remove.onclick = function() {
+
+                selectedDistributions
+                    .splice(index, 1);
+
+                showSelectedDistributions();
+
+            };
+
+
+            span.appendChild(remove);
+
+            area.appendChild(span);
+
+        }
+    );
+
+}
+
+
+/* =========================
+   登録フォーム表示
+========================= */
+
+function showForm() {
+
+    editingIndex = -1;
+
+    selectedPhoto = "";
+
+    selectedDistributions = [];
+
+    selectedColor = "";
+
+
+    document.getElementById("formTitle")
+        .textContent =
+        "新しい生物を登録";
+
+
+    document.getElementById("form")
+        .classList.remove("hidden");
+
+
+    document.getElementById("japaneseName")
+        .value = "";
+
+    document.getElementById("scientificName")
+        .value = "";
+
+    document.getElementById("kingdom")
+        .value = "";
+
+    document.getElementById("phylum")
+        .value = "";
+
+    document.getElementById("className")
+        .value = "";
+
+    document.getElementById("order")
+        .value = "";
+
+    document.getElementById("family")
+        .value = "";
+
+    document.getElementById("customDistribution")
+        .value = "";
+
+    document.getElementById("description")
+        .value = "";
+
+    document.getElementById("photo")
+        .value = "";
+
+    document.getElementById("photoPreview")
+        .innerHTML = "";
+
+
+    document
+        .querySelectorAll(".color-button")
+        .forEach(function(button) {
+
+            button.classList.remove(
+                "selected"
+            );
+
+        });
+
+
+    showSelectedDistributions();
+
+}
+
+
+/* =========================
+   フォームを閉じる
+========================= */
+
+function hideForm() {
+
+    document.getElementById("form")
+        .classList.add("hidden");
+
+}
+
+
+/* =========================
+   保存
+========================= */
+
+function saveData() {
+
+    const japaneseName =
+        document.getElementById(
+            "japaneseName"
+        ).value.trim();
+
+
+    const scientificName =
+        document.getElementById(
+            "scientificName"
+        ).value.trim();
+
+
+    if (!japaneseName) {
+
+        document.getElementById("saveMessage").textContent = "和名を入力してください。";
+        return;
+
+    }
+
+
+    if (!scientificName) {
+
+        document.getElementById("saveMessage").textContent = "学名を入力してください。";
+        return;
+
+    }
+
+
+    if (!selectedColor) {
+
+        document.getElementById("saveMessage").textContent = "色を1つ選択してください。";
+        return;
+
+    }
+
+
+    const organism = {
+
+        japaneseName:
+            japaneseName,
+
+        scientificName:
+            scientificName,
+
+        color:
+            selectedColor,
+
+        taxonomy: {
+
+            kingdom:
+                document.getElementById(
+                    "kingdom"
+                ).value.trim(),
+
+            phylum:
+                document.getElementById(
+                    "phylum"
+                ).value.trim(),
+
+            className:
+                document.getElementById(
+                    "className"
+                ).value.trim(),
+
+            order:
+                document.getElementById(
+                    "order"
+                ).value.trim(),
+
+            family:
+                document.getElementById(
+                    "family"
+                ).value.trim()
+
+        },
+
+        distributions:
+            selectedDistributions.slice(),
+
+        description:
+            document.getElementById(
+                "description"
+            ).value.trim(),
+
+        photo:
+            selectedPhoto
+
+    };
+
+
+    const photoFile =
+        document.getElementById(
+            "photo"
+        ).files[0];
+
+
+    if (photoFile) {
+
+        compressImage(
+            photoFile,
+            function(compressedPhoto) {
+
+                organism.photo =
+                    compressedPhoto;
+
+                actuallySave(
+                    organism
+                );
+
+            }
+        );
+
+    } else {
+
+        actuallySave(
+            organism
+        );
+
+    }
+
+}
+
+
+/* =========================
+   実際に保存
+========================= */
+
+function actuallySave(organism) {
+
+    let organisms = getOrganisms();
+
+    if (editingIndex >= 0) {
+        organisms[editingIndex] = organism;
+    } else {
+        organisms.push(organism);
+    }
+
+    try {
+        setOrganisms(organisms);
+        editingIndex = -1;
+        hideForm();
+        showList();
+    } catch (error) {
+        console.error("local save error:", error);
+        alert("PCへの保存に失敗しました。\\n" + (error.message || error));
+        return;
+    }
+
+    const saveMessage = document.getElementById("saveMessage");
+    if (saveMessage) saveMessage.textContent = "保存しました。";
+
+    if (currentUser) {
+        saveCloudData(true);
+    }
+}
+
+
+/* =========================
+   生物一覧
+========================= */
+
+function showList() {
+
+    const area =
+        document.getElementById(
+            "listArea"
+        );
+
+    area.innerHTML =
+        "<h2>生物一覧</h2>" +
+        `
+        <div class="organism-search-box">
+            <input
+                type="text"
+                id="organismSearchInput"
+                placeholder="和名・学名を入力"
+            >
+            <button
+                type="button"
+                id="organismSearchButton"
+            >
+                検索
+            </button>
+            <button
+                type="button"
+                id="organismClearButton"
+            >
+                クリア
+            </button>
+        </div>
+
+        <div id="organismSearchResults"></div>
+
+        <div id="organismList"></div>
+        `;
+
+
+    area.innerHTML =
+        "<h2>生物一覧</h2>";
+
+
+    let entries =
+        getEntries();
+
+
+    entries =
+        sortEntries(entries);
+
+
+    if (entries.length === 0) {
+
+        area.innerHTML +=
+            "<p>まだ生物が登録されていません。</p>";
+
+        showTaxonomyButtons();
+
+        return;
+
+    }
+
+
+    entries.forEach(
+        function(entry) {
+
+            area.appendChild(
+                createSearchResult(
+                    entry.organism,
+                    entry.index
+                )
+            );
+
+        }
+    );
+
+
+    showTaxonomyButtons();
+
+
+    const searchButton =
+        document.getElementById(
+            "organismSearchButton"
+        );
+
+    const clearButton =
+        document.getElementById(
+            "organismClearButton"
+        );
+
+    if (searchButton) {
+        searchButton.onclick = searchOrganisms;
+    }
+
+    if (clearButton) {
+        clearButton.onclick = clearOrganismSearch;
+    }
+
+}
+
+
+/* =========================
+   生物表示
+========================= */
+
+function createSearchResult(
+    organism,
+    originalIndex
+) {
+
+    const row =
+        document.createElement("div");
+
+    row.className =
+        "organism-row";
+
+
+    /* 写真 */
+
+    if (organism.photo) {
+
+        const img =
+            document.createElement("img");
+
+        img.src =
+            organism.photo;
+
+        img.className =
+            "organism-photo";
+
+        row.appendChild(img);
+
+    } else {
+
+        const noPhoto =
+            document.createElement("div");
+
+        noPhoto.className =
+            "no-photo";
+
+        noPhoto.textContent =
+            "写真なし";
+
+        row.appendChild(noPhoto);
+
+    }
+
+
+    /* 和名 */
+
+    const japanese =
+        document.createElement("div");
+
+    japanese.className =
+        "japanese-name";
+
+    japanese.textContent =
+        organism.japaneseName || "";
+
+    row.appendChild(japanese);
+
+
+    /* 学名 */
+
+    const scientific =
+        document.createElement("div");
+
+    scientific.className =
+        "scientific-name";
+
+    scientific.textContent =
+        organism.scientificName || "";
+
+    row.appendChild(scientific);
+
+
+    /* 色 */
+
+    const colorArea =
+        document.createElement("div");
+
+    colorArea.className =
+        "color-area";
+
+
+    if (organism.color) {
+
+        const circle =
+            document.createElement("span");
+
+        circle.className =
+            "color-circle";
+
+        circle.style.backgroundColor =
+            colorValues[
+                organism.color
+            ] || "#ccc";
+
+
+        const colorText =
+            document.createElement("span");
+
+        colorText.textContent =
+            organism.color;
+
+
+        colorArea.appendChild(circle);
+
+        colorArea.appendChild(colorText);
+
+    } else {
+
+        colorArea.textContent =
+            "未登録";
+
+    }
+
+
+    row.appendChild(colorArea);
+
+
+    /* ボタン */
+
+    const actions =
+        document.createElement("div");
+
+    actions.className =
+        "action-area";
+
+
+    const detailButton =
+        document.createElement("button");
+
+    detailButton.textContent =
+        "詳細";
+
+    detailButton.onclick =
+        function() {
+
+            showDetail(
+                originalIndex
+            );
+
+        };
+
+
+    const editButton =
+        document.createElement("button");
+
+    editButton.textContent =
+        "編集";
+
+    editButton.onclick =
+        function() {
+
+            editData(
+                originalIndex
+            );
+
+        };
+
+
+    const deleteButton =
+        document.createElement("button");
+
+    deleteButton.textContent =
+        "削除";
+
+    deleteButton.onclick =
+        function() {
+
+            deleteData(
+                originalIndex
+            );
+
+        };
+
+
+    actions.appendChild(
+        detailButton
+    );
+
+    actions.appendChild(
+        editButton
+    );
+
+    actions.appendChild(
+        deleteButton
+    );
+
+
+    row.appendChild(actions);
+
+
+    return row;
+
+}
+
+
+/* =========================
+   分類ボタン
+========================= */
+
+function showTaxonomyButtons() {
+
+    const area =
+        document.getElementById(
+            "taxonomyButtons"
+        );
+
+
+    area.innerHTML = "";
+
+
+    const organisms =
+        JSON.parse(
+            localStorage.getItem(
+                "organisms"
+            )
+        ) || [];
+
+
+    const types = [
+
+        {
+            key: "kingdom",
+            name: "界"
+        },
+
+        {
+            key: "phylum",
+            name: "門"
+        },
+
+        {
+            key: "className",
+            name: "綱"
+        },
+
+        {
+            key: "order",
+            name: "目"
+        },
+
+        {
+            key: "family",
+            name: "科"
+        }
+
+    ];
+
+
+    types.forEach(
+        function(type) {
+
+            const values = [];
+
+
+            organisms.forEach(
+                function(organism) {
+
+                    let value = "";
+
+
+                    if (
+                        organism.taxonomy
+                    ) {
+
+                        value =
+                            organism.taxonomy[
+                                type.key
+                            ] || "";
+
+                    }
+
+
+                    if (
+                        !value &&
+                        organism[type.key]
+                    ) {
+
+                        value =
+                            organism[type.key];
+
+                    }
+
+
+                    if (
+                        value &&
+                        !values.includes(value)
+                    ) {
+
+                        values.push(value);
+
+                    }
+
+                }
+            );
+
+
+            if (values.length === 0) {
+
+                return;
+
+            }
+
+
+            const heading =
+                document.createElement("h3");
+
+            heading.textContent =
+                type.name;
+
+
+            area.appendChild(
+                heading
+            );
+
+
+            values.forEach(
+                function(value) {
+
+                    const button =
+                        document.createElement(
+                            "button"
+                        );
+
+                    button.textContent =
+                        value;
+
+
+                    button.onclick =
+                        function() {
+
+                            showTaxonomy(
+                                type.key,
+                                type.name,
+                                value
+                            );
+
+                        };
+
+
+                    area.appendChild(
+                        button
+                    );
+
+                }
+            );
+
+        }
+    );
+
+
+    if (!area.innerHTML) {
+
+        area.textContent =
+            "まだ分類が登録されていません。";
+
+    }
+
+}
+
+
+/* =========================
+   分類検索
+========================= */
+
+function showTaxonomy(
+    typeKey,
+    typeName,
+    value
+) {
+
+    document
+        .getElementById(
+            "listArea"
+        )
+        .classList.add(
+            "hidden"
+        );
+
+
+    document
+        .getElementById(
+            "taxonomyPage"
+        )
+        .classList.remove(
+            "hidden"
+        );
+
+
+    document
+        .getElementById(
+            "taxonomyTitle"
+        )
+        .textContent =
+        typeName + "：" + value;
+
+
+    const resultArea =
+        document.getElementById(
+            "taxonomyResult"
+        );
+
+
+    resultArea.innerHTML = "";
+
+
+    let entries =
+        getEntries();
+
+
+    entries =
+        entries.filter(
+            function(entry) {
+
+                const organism =
+                    entry.organism;
+
+                let taxonomy =
+                    organism.taxonomy
+                    || {};
+
+
+                let target =
+                    taxonomy[typeKey]
+                    || organism[typeKey]
+                    || "";
+
+
+                return target === value;
+
+            }
+        );
+
+
+    entries =
+        sortEntries(entries);
+
+
+    if (entries.length === 0) {
+
+        resultArea.innerHTML =
+            "<p>該当する生物はありません。</p>";
+
+        return;
+
+    }
+
+
+    entries.forEach(
+        function(entry) {
+
+            resultArea.appendChild(
+                createSearchResult(
+                    entry.organism,
+                    entry.index
+                )
+            );
+
+        }
+    );
+
+}
+
+
+/* =========================
+   分類ページを閉じる
+========================= */
+
+function hideTaxonomyPage() {
+
+    document
+        .getElementById(
+            "taxonomyPage"
+        )
+        .classList.add(
+            "hidden"
+        );
+
+
+    document
+        .getElementById(
+            "listArea"
+        )
+        .classList.remove(
+            "hidden"
+        );
+
+
+    showList();
+
+}
+
+
+/* =========================
+   詳細表示
+========================= */
+
+function showDetail(index) {
+
+    const organisms =
+        JSON.parse(
+            localStorage.getItem(
+                "organisms"
+            )
+        ) || [];
+
+
+    const organism =
+        organisms[index];
+
+
+    if (!organism) {
+
+        alert("データが見つかりません。");
+
+        return;
+
+    }
+
+
+    document
+        .getElementById(
+            "listArea"
+        )
+        .classList.add(
+            "hidden"
+        );
+
+
+    document
+        .getElementById(
+            "detail"
+        )
+        .classList.remove(
+            "hidden"
+        );
+
+
+    const area =
+        document.getElementById(
+            "detailContent"
+        );
+
+
+    area.innerHTML = "";
+
+
+    /* 写真 */
+
+    if (organism.photo) {
+
+        const img =
+            document.createElement("img");
+
+        img.src =
+            organism.photo;
+
+        img.style.maxWidth =
+            "500px";
+
+        img.style.maxHeight =
+            "500px";
+
+        img.style.objectFit =
+            "contain";
+
+        area.appendChild(img);
+
+    }
+
+
+    /* 和名 */
+
+    const name =
+        document.createElement("h2");
+
+    name.textContent =
+        organism.japaneseName || "";
+
+    area.appendChild(name);
+
+
+    /* 学名 */
+
+    const scientific =
+        document.createElement("p");
+
+    scientific.innerHTML =
+        "<i>" +
+        (organism.scientificName || "") +
+        "</i>";
+
+    area.appendChild(scientific);
+
+
+    /* 色 */
+
+    const color =
+        document.createElement("p");
+
+    color.textContent =
+        "色：" +
+        (organism.color || "未登録");
+
+    area.appendChild(color);
+
+
+    /* 分類 */
+
+    const taxonomy =
+        organism.taxonomy || {};
+
+
+    const classification =
+        document.createElement("div");
+
+
+    classification.innerHTML =
+
+        "<h3>分類</h3>" +
+
+        "<p>界：" +
+        (taxonomy.kingdom || organism.kingdom || "未登録") +
+        "</p>" +
+
+        "<p>門：" +
+        (taxonomy.phylum || organism.phylum || "未登録") +
+        "</p>" +
+
+        "<p>綱：" +
+        (taxonomy.className || organism.className || "未登録") +
+        "</p>" +
+
+        "<p>目：" +
+        (taxonomy.order || organism.order || "未登録") +
+        "</p>" +
+
+        "<p>科：" +
+        (taxonomy.family || organism.family || "未登録") +
+        "</p>";
+
+
+    area.appendChild(
+        classification
+    );
+
+
+    /* 分布 */
+
+    const distribution =
+        document.createElement("div");
+
+
+    distribution.innerHTML =
+        "<h3>分布</h3>";
+
+
+    const distributions =
+        organism.distributions
+        || (
+            organism.location
+            ? [organism.location]
+            : []
+        );
+
+
+    if (
+        distributions.length === 0
+    ) {
+
+        const p =
+            document.createElement("p");
+
+        p.textContent =
+            "未登録";
+
+        distribution.appendChild(p);
+
+    } else {
+
+        distributions.forEach(
+            function(name) {
+
+                const button =
+                    document.createElement(
+                        "button"
+                    );
+
+                button.textContent =
+                    name;
+
+
+                button.onclick =
+                    function() {
+
+                        showDistribution(
+                            name
+                        );
+
+                    };
+
+
+                distribution.appendChild(
+                    button
+                );
+
+            }
+        );
+
+    }
+
+
+    area.appendChild(
+        distribution
+    );
+
+
+    /* 解説 */
+
+    const description =
+        document.createElement("div");
+
+
+    description.innerHTML =
+        "<h3>解説</h3>";
+
+
+    const descText =
+        document.createElement("p");
+
+    descText.textContent =
+        organism.description
+        || "未登録";
+
+
+    description.appendChild(
+        descText
+    );
+
+
+    area.appendChild(
+        description
+    );
+
+
+    /* 編集ボタン */
+
+    const editButton =
+        document.createElement("button");
+
+    editButton.textContent =
+        "編集";
+
+
+    editButton.onclick =
+        function() {
+
+            hideDetail();
+
+            editData(index);
+
+        };
+
+
+    area.appendChild(
+        editButton
+    );
+
+
+    /* 削除ボタン */
+
+    const deleteButton =
+        document.createElement("button");
+
+    deleteButton.textContent =
+        "削除";
+
+
+    deleteButton.onclick =
+        function() {
+
+            deleteData(index);
+
+        };
+
+
+    area.appendChild(
+        deleteButton
+    );
+
+}
+
+
+/* =========================
+   詳細を閉じる
+========================= */
+
+function hideDetail() {
+
+    document
+        .getElementById(
+            "detail"
+        )
+        .classList.add(
+            "hidden"
+        );
+
+
+    document
+        .getElementById(
+            "listArea"
+        )
+        .classList.remove(
+            "hidden"
+        );
+
+
+    showList();
+
+}
+
+
+/* =========================
+   分布検索
+========================= */
+
+function showDistribution(name) {
+
+    document
+        .getElementById(
+            "listArea"
+        )
+        .classList.add(
+            "hidden"
+        );
+
+
+    document
+        .getElementById(
+            "distributionPage"
+        )
+        .classList.remove(
+            "hidden"
+        );
+
+
+    document
+        .getElementById(
+            "distributionTitle"
+        )
+        .textContent =
+        "分布：" + name;
+
+
+    const resultArea =
+        document.getElementById(
+            "distributionResult"
+        );
+
+
+    resultArea.innerHTML = "";
+
+
+    let entries =
+        getEntries();
+
+
+    entries =
+        entries.filter(
+            function(entry) {
+
+                const organism =
+                    entry.organism;
+
+
+                const distributions =
+                    organism.distributions
+                    || (
+                        organism.location
+                        ? [organism.location]
+                        : []
+                    );
+
+
+                return distributions.includes(
+                    name
+                );
+
+            }
+        );
+
+
+    entries =
+        sortEntries(entries);
+
+
+    if (entries.length === 0) {
+
+        resultArea.innerHTML =
+            "<p>該当する生物はありません。</p>";
+
+        return;
+
+    }
+
+
+    entries.forEach(
+        function(entry) {
+
+            resultArea.appendChild(
+                createSearchResult(
+                    entry.organism,
+                    entry.index
+                )
+            );
+
+        }
+    );
+
+}
+
+
+/* =========================
+   分布ページを閉じる
+========================= */
+
+function hideDistributionPage() {
+
+    document
+        .getElementById(
+            "distributionPage"
+        )
+        .classList.add(
+            "hidden"
+        );
+
+
+    document
+        .getElementById(
+            "listArea"
+        )
+        .classList.remove(
+            "hidden"
+        );
+
+
+    showList();
+
+}
+
+
+/* =========================
+   編集
+========================= */
+
+function editData(index) {
+
+    const organisms =
+        JSON.parse(
+            localStorage.getItem(
+                "organisms"
+            )
+        ) || [];
+
+
+    const organism =
+        organisms[index];
+
+
+    if (!organism) {
+
+        alert(
+            "編集するデータが見つかりません。"
+        );
+
+        return;
+
+    }
+
+
+    editingIndex =
+        index;
+
+
+    selectedPhoto =
+        organism.photo || "";
+
+
+    selectedColor =
+        organism.color || "";
+
+
+    selectedDistributions =
+        organism.distributions
+        ? organism.distributions.slice()
+        : (
+            organism.location
+            ? [organism.location]
+            : []
+        );
+
+
+    document
+        .getElementById(
+            "formTitle"
+        )
+        .textContent =
+        "生物を編集";
+
+
+    document
+        .getElementById(
+            "form"
+        )
+        .classList.remove(
+            "hidden"
+        );
+
+
+    document
+        .getElementById(
+            "japaneseName"
+        )
+        .value =
+        organism.japaneseName || "";
+
+
+    document
+        .getElementById(
+            "scientificName"
+        )
+        .value =
+        organism.scientificName || "";
+
+
+    const taxonomy =
+        organism.taxonomy || {};
+
+
+    document
+        .getElementById(
+            "kingdom"
+        )
+        .value =
+        taxonomy.kingdom
+        || organism.kingdom
+        || "";
+
+
+    document
+        .getElementById(
+            "phylum"
+        )
+        .value =
+        taxonomy.phylum
+        || organism.phylum
+        || "";
+
+
+    document
+        .getElementById(
+            "className"
+        )
+        .value =
+        taxonomy.className
+        || organism.className
+        || "";
+
+
+    document
+        .getElementById(
+            "order"
+        )
+        .value =
+        taxonomy.order
+        || organism.order
+        || "";
+
+
+    document
+        .getElementById(
+            "family"
+        )
+        .value =
+        taxonomy.family
+        || organism.family
+        || "";
+
+
+    document
+        .getElementById(
+            "description"
+        )
+        .value =
+        organism.description || "";
+
+
+    document
+        .getElementById(
+            "photo"
+        )
+        .value = "";
+
+
+    /* 現在の写真 */
+
+    const preview =
+        document.getElementById(
+            "photoPreview"
+        );
+
+
+    preview.innerHTML = "";
+
+
+    if (organism.photo) {
+
+        const img =
+            document.createElement("img");
+
+        img.src =
+            organism.photo;
+
+        img.style.maxWidth =
+            "300px";
+
+        img.style.maxHeight =
+            "300px";
+
+        img.style.objectFit =
+            "contain";
+
+
+        preview.appendChild(
+            img
+        );
+
+    }
+
+
+    /* 色 */
+
+    document
+        .querySelectorAll(
+            ".color-button"
+        )
+        .forEach(
+            function(button) {
+
+                button.classList.remove(
+                    "selected"
+                );
+
+
+                if (
+                    button.dataset.color
+                    === selectedColor
+                ) {
+
+                    button.classList.add(
+                        "selected"
+                    );
+
+                }
+
+            }
+        );
+
+
+    showSelectedDistributions();
+
+}
+
+
+/* =========================
+   削除
+========================= */
+
+async function deleteData(index) {
+
+    const organisms = getOrganisms();
+
+    const organism = organisms[index];
+
+    if (!organism) {
+        return;
+    }
+
+    const result = confirm(
+        "「" + organism.japaneseName + "」を削除しますか？"
+    );
+
+    if (!result) {
+        return;
+    }
+
+    // まずPC側から削除
+    organisms.splice(index, 1);
+
+    try {
+        setOrganisms(organisms);
+    } catch (error) {
+        console.error("local delete error:", error);
+        alert("削除に失敗しました。\n" + (error.message || error));
+        return;
+    }
+
+    // 画面をすぐ更新
+    const detail = document.getElementById("detail");
+    if (detail) detail.classList.add("hidden");
+
+    const taxonomyPage = document.getElementById("taxonomyPage");
+    if (taxonomyPage) taxonomyPage.classList.add("hidden");
+
+    const distributionPage = document.getElementById("distributionPage");
+    if (distributionPage) distributionPage.classList.add("hidden");
+
+    const listArea = document.getElementById("listArea");
+    if (listArea) listArea.classList.remove("hidden");
+
+    showList();
+
+    // ログイン中ならFirebaseにも反映
+    if (currentUser) {
+        const synced = await saveCloudData(true);
+
+        if (!synced) {
+            alert(
+                "PCでは削除しましたが、Firebaseへの反映に失敗しました。\n" +
+                "もう一度ログインして確認してください。"
+            );
+        }
+    }
+
+}
+
+
+
+/* =========================
+   Firebase ログイン・同期
+========================= */
+
+async function login() {
+
+    const email = document.getElementById("email").value.trim();
+    const password = document.getElementById("password").value;
+    const message = document.getElementById("loginMessage");
+
+    if (!email || !password) {
+        message.textContent = "メールアドレスとパスワードを入力してください。";
+        return;
+    }
+
+    message.textContent = "ログインしています…";
+
+    try {
+        await signInWithEmailAndPassword(auth, email, password);
+        message.textContent = "ログイン成功。画面を切り替えています…";
+    } catch (error) {
+        console.error(error);
+        const code = error && error.code ? error.code : "コードなし";
+        const detail = error && error.message ? error.message : String(error);
+        message.textContent = "ログインできませんでした。\nFirebaseエラー: " + code + "\n詳細: " + detail;
+    }
+}
+
+async function logout() {
+    await signOut(auth);
+}
+
+async function saveCloudData(showError = false) {
+
+    if (!currentUser || savingToCloud) return false;
+
+    savingToCloud = true;
+
+    try {
+        const organisms = getOrganisms();
+        const payload = JSON.stringify({ organisms: organisms });
+        const bytes = new Blob([payload]).size;
+
+        /* Firestoreの1MiB制限に余裕を持たせる */
+        if (bytes > 900000) {
+            document.getElementById("syncMessage").textContent =
+                "写真を含むデータが大きすぎます。";
+
+            if (showError) {
+                alert(
+                    "写真を含むデータが大きすぎるため、Firebaseへ保存できません。\n\n" +
+                    "現在のデータサイズ：約" + Math.round(bytes / 1024) + "KB\n" +
+                    "写真をさらに小さくしてください。"
+                );
+            }
+            return false;
+        }
+
+        const ref = doc(db, "organisms", currentUser.uid);
+        await setDoc(ref, {
+            organisms: organisms
+        });
+
+        document.getElementById("syncMessage").textContent =
+            "クラウドと同期済みです。";
+        return true;
+
+    } catch (error) {
+        console.error("Firestore save error:", error);
+        const code = error && error.code ? error.code : "unknown";
+        const detail = error && error.message ? error.message : String(error);
+
+        document.getElementById("syncMessage").textContent =
+            "クラウドへの保存に失敗しました（" + code + "）。";
+
+        if (showError) {
+            alert(
+                "PCには保存できました。\n\n" +
+                "Firebaseへの同期だけ失敗しました。\n\n" +
+                "エラーコード：" + code +
+                "\n詳細：" + detail
+            );
+        }
+        return false;
+
+    } finally {
+        savingToCloud = false;
+    }
+}
+
+async function loadCloudData() {
+
+    if (!currentUser) return;
+
+    const message = document.getElementById("syncMessage");
+    message.textContent = "クラウドからデータを読み込んでいます…";
+
+    try {
+        const ref = doc(db, "organisms", currentUser.uid);
+        const snapshot = await getDoc(ref);
+
+        if (snapshot.exists()) {
+
+            const data = snapshot.data();
+            const cloud = Array.isArray(data.organisms)
+                ? data.organisms
+                : [];
+
+            const local = getOrganisms();
+
+            /*
+             * 以前の版では写真をクラウドへ保存していなかったため、
+             * クラウド側に写真がない古いデータにはPC側の写真を引き継ぐ。
+             */
+            const merged = cloud.map(function(item, index) {
+                const copy = JSON.parse(JSON.stringify(item));
+
+                if (
+                    !copy.photo &&
+                    local[index] &&
+                    local[index].photo
+                ) {
+                    copy.photo = local[index].photo;
+                }
+
+                return copy;
+            });
+
+            setOrganisms(merged);
+
+            /* PC側にしかなかった写真もFirebaseへ保存 */
+            await saveCloudData();
+
+        } else {
+            /* 初回ログイン：現在のPCデータをFirebaseへ保存 */
+            await saveCloudData();
+        }
+
+        message.textContent = "クラウドと同期済みです。";
+        showList();
+
+    } catch (error) {
+        console.error(error);
+        message.textContent = "クラウドとの同期に失敗しました。";
+        alert(
+            "クラウドとの同期に失敗しました。\n" +
+            "エラーコード：" +
+            (error && error.code ? error.code : "unknown") +
+            "\n詳細：" +
+            (error && error.message ? error.message : String(error))
+        );
+    }
+}
+
+// HTMLのonclickから呼び出せるように公開
+window.login = login;
+window.logout = logout;
+window.showForm = showForm;
+window.hideForm = hideForm;
+window.selectColor = selectColor;
+window.addCustomDistribution = addCustomDistribution;
+window.previewPhoto = previewPhoto;
+
+// 保存ボタンを確実にJavaScriptへ接続
+window.addEventListener("DOMContentLoaded", function() {
+    const saveButton = document.getElementById("saveButton");
+    if (saveButton) {
+        saveButton.addEventListener("click", function(event) {
+            event.preventDefault();
+            saveData();
+        });
+    }
+});
+window.saveData = saveData;
+window.hideDetail = hideDetail;
+window.hideTaxonomyPage = hideTaxonomyPage;
+window.hideDistributionPage = hideDistributionPage;
+
+onAuthStateChanged(auth, async function(user) {
+
+    currentUser = user;
+
+    const loginArea = document.getElementById("loginArea");
+    const userArea = document.getElementById("userArea");
+
+    if (user) {
+
+        loginArea.classList.add("hidden");
+        userArea.classList.remove("hidden");
+
+        document.getElementById("userEmail").textContent =
+            "ログイン中：" + user.email;
+
+        await loadCloudData();
+
+    } else {
+
+        loginArea.classList.remove("hidden");
+        userArea.classList.add("hidden");
+        showList();
+    }
+});
+
+/* =========================
+   初期表示
+========================= */
+
+document
+    .getElementById(
+        "sortSelect"
+    )
+    .value =
+    currentSort;
+
+
+showList();
+
+
+/* =========================
+   和名・学名検索
+========================= */
+
+function searchOrganisms() {
+    const input =
+        document.getElementById("organismSearchInput");
+
+    const resultsArea =
+        document.getElementById("organismSearchResults");
+
+    if (!input || !resultsArea) {
+        return;
+    }
+
+    const keyword =
+        input.value.trim().toLowerCase();
+
+    const entries = getEntries();
+
+    resultsArea.innerHTML = "";
+
+    if (keyword === "") {
+        return;
+    }
+
+    const results = entries.filter(function(entry) {
+        const organism = entry.organism || {};
+
+        const japaneseName =
+            String(
+                organism.japaneseName || ""
+            ).toLowerCase();
+
+        const scientificName =
+            String(
+                organism.scientificName || ""
+            ).toLowerCase();
+
+        return (
+            japaneseName.includes(keyword) ||
+            scientificName.includes(keyword)
+        );
+    });
+
+    if (results.length === 0) {
+        resultsArea.innerHTML =
+            "<p>該当する生物が見つかりませんでした。</p>";
+        return;
+    }
+
+    results.forEach(function(entry) {
+        const organism = entry.organism || {};
+
+        const result =
+            document.createElement("div");
+
+        result.className =
+            "organism-search-result";
+
+        const name =
+            document.createElement("strong");
+
+        name.textContent =
+            organism.japaneseName ||
+            "和名未登録";
+
+        const scientific =
+            document.createElement("em");
+
+        scientific.textContent =
+            organism.scientificName ||
+            "学名未登録";
+
+        const detailButton =
+            document.createElement("button");
+
+        detailButton.type = "button";
+        detailButton.textContent = "詳細";
+
+        detailButton.addEventListener(
+            "click",
+            function() {
+                showDetail(entry.index);
+            }
+        );
+
+        result.appendChild(name);
+        result.appendChild(
+            document.createElement("br")
+        );
+        result.appendChild(scientific);
+        result.appendChild(
+            document.createElement("br")
+        );
+        result.appendChild(detailButton);
+
+        resultsArea.appendChild(result);
+    });
+}
+
+function clearOrganismSearch() {
+    const input =
+        document.getElementById(
+            "organismSearchInput"
+        );
+
+    const resultsArea =
+        document.getElementById(
+            "organismSearchResults"
+        );
+
+    if (input) {
+        input.value = "";
+    }
+
+    if (resultsArea) {
+        resultsArea.innerHTML = "";
+    }
+}
+
+
+</script>
+
+</body>
+</html>
