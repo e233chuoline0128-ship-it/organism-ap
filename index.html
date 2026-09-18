@@ -70,17 +70,36 @@ textarea {
 ========================= */
 
 .organism-row {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 20px;
     width: 100%;
     min-height: 100px;
-    padding: 10px;
+    padding: 10px 14px 10px 24px;
     margin-bottom: 10px;
     background: white;
-    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    border-radius: 12px;
     box-sizing: border-box;
     overflow-x: auto;
+    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+}
+
+.organism-row::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 14px;
+    background: var(--organism-color, #cccccc);
+    border-radius: 12px 0 0 12px;
+}
+
+.organism-row:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.09);
 }
 
 .organism-photo {
@@ -122,14 +141,6 @@ textarea {
     display: flex;
     align-items: center;
     gap: 8px;
-}
-
-.color-circle {
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    border: 1px solid #777;
-    display: inline-block;
 }
 
 .action-area {
@@ -182,17 +193,169 @@ textarea {
 }
 
 /* =========================
-   スマートフォン
+   タブレット・iPad対応
+========================= */
+
+@media (max-width: 1100px) {
+
+    body {
+        padding: 14px;
+    }
+
+    .container {
+        width: 100%;
+    }
+
+    .form-area,
+    .detail-area,
+    .search-area {
+        padding: 16px;
+    }
+
+    .organism-row {
+        gap: 12px;
+        min-height: 90px;
+        padding: 9px 12px 9px 20px;
+        overflow-x: visible;
+        flex-wrap: wrap;
+    }
+
+    .organism-photo,
+    .no-photo {
+        width: 84px;
+        height: 84px;
+    }
+
+    .japanese-name {
+        width: 180px;
+        min-width: 150px;
+        font-size: 18px;
+    }
+
+    .scientific-name {
+        min-width: 160px;
+        font-size: 15px;
+    }
+
+    .action-area {
+        margin-left: auto;
+    }
+
+}
+
+/* =========================
+   スマートフォン対応
 ========================= */
 
 @media (max-width: 700px) {
 
     body {
-        padding: 10px;
+        padding: 8px;
+        font-size: 15px;
+    }
+
+    h1 {
+        font-size: 24px;
+    }
+
+    .form-area,
+    .detail-area,
+    .search-area {
+        padding: 12px;
+        margin-top: 12px;
+        border-radius: 10px;
+    }
+
+    input,
+    select,
+    textarea {
+        max-width: none;
+        font-size: 16px;
     }
 
     .organism-row {
-        min-width: 850px;
+        min-width: 0;
+        width: 100%;
+        min-height: 0;
+        display: grid;
+        grid-template-columns: 76px minmax(0, 1fr);
+        grid-template-areas:
+            "photo japanese"
+            "photo scientific"
+            "photo actions";
+        column-gap: 12px;
+        row-gap: 4px;
+        align-items: center;
+        padding: 10px 10px 10px 17px;
+        margin-bottom: 8px;
+        overflow: hidden;
+    }
+
+    .organism-row::before {
+        width: 7px;
+        border-radius: 10px 0 0 10px;
+    }
+
+    .organism-photo,
+    .no-photo {
+        grid-area: photo;
+        width: 76px;
+        height: 76px;
+    }
+
+    .japanese-name {
+        grid-area: japanese;
+        width: auto;
+        min-width: 0;
+        font-size: 17px;
+        line-height: 1.25;
+        overflow-wrap: anywhere;
+    }
+
+    .scientific-name {
+        grid-area: scientific;
+        min-width: 0;
+        font-size: 13px;
+        line-height: 1.25;
+        overflow-wrap: anywhere;
+    }
+
+    .action-area {
+        grid-area: actions;
+        margin-left: 0;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 3px;
+    }
+
+    .action-area button {
+        margin: 2px 2px 0 0;
+        padding: 7px 9px;
+        font-size: 14px;
+    }
+
+    .organism-search-box {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .organism-search-box input {
+        min-width: 0;
+        width: 100%;
+    }
+
+    .organism-search-result {
+        align-items: flex-start;
+        padding: 10px;
+    }
+
+    .color-buttons {
+        gap: 4px;
+    }
+
+    .color-button {
+        min-width: 68px;
+        padding: 7px 9px;
     }
 
 }
@@ -638,7 +801,8 @@ import {
     getFirestore,
     doc,
     getDoc,
-    setDoc
+    setDoc,
+    deleteDoc
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
 const firebaseConfig = {
@@ -911,94 +1075,71 @@ function previewPhoto() {
    写真を圧縮
 ========================= */
 
-function compressImage(
-    file,
-    callback
-) {
+function compressImage(file, callback) {
 
-    const reader =
-        new FileReader();
+    const reader = new FileReader();
 
     reader.onload = function(e) {
 
-        const img =
-            new Image();
+        const img = new Image();
 
         img.onload = function() {
 
-            const maxSize = 1200;
+            /*
+             * できるだけ小さくする。
+             * 通常は長辺300px・JPEG品質0.20。
+             * それでも大きい場合は250px・品質0.18。
+             */
+            const settings = [
+                { maxSize: 300, quality: 0.20 },
+                { maxSize: 250, quality: 0.18 }
+            ];
 
-            let width = img.width;
+            let compressed = "";
 
-            let height = img.height;
+            for (const setting of settings) {
 
+                let width = img.width;
+                let height = img.height;
+                const maxSize = setting.maxSize;
 
-            if (width > height) {
-
-                if (width > maxSize) {
-
-                    height =
-                        height * maxSize / width;
-
-                    width = maxSize;
-
+                if (width > height) {
+                    if (width > maxSize) {
+                        height = height * maxSize / width;
+                        width = maxSize;
+                    }
+                } else {
+                    if (height > maxSize) {
+                        width = width * maxSize / height;
+                        height = maxSize;
+                    }
                 }
 
-            } else {
+                width = Math.max(1, Math.round(width));
+                height = Math.max(1, Math.round(height));
 
-                if (height > maxSize) {
+                const canvas = document.createElement("canvas");
+                canvas.width = width;
+                canvas.height = height;
 
-                    width =
-                        width * maxSize / height;
+                const ctx = canvas.getContext("2d", { alpha: false });
+                ctx.drawImage(img, 0, 0, width, height);
 
-                    height = maxSize;
+                compressed = canvas.toDataURL("image/jpeg", setting.quality);
 
+                if (compressed.length <= 180000) {
+                    break;
                 }
-
             }
 
-
-            const canvas =
-                document.createElement("canvas");
-
-            canvas.width = width;
-
-            canvas.height = height;
-
-
-            const ctx =
-                canvas.getContext("2d");
-
-            ctx.drawImage(
-                img,
-                0,
-                0,
-                width,
-                height
-            );
-
-
-            const compressed =
-                canvas.toDataURL(
-                    "image/jpeg",
-                    0.7
-                );
-
-
             callback(compressed);
-
         };
 
-
         img.src = e.target.result;
-
     };
 
-
     reader.readAsDataURL(file);
-
 }
-
 
 /* =========================
    分布を追加
@@ -1403,6 +1544,10 @@ function showList() {
         `;
 
 
+    area.innerHTML =
+        "<h2>生物一覧</h2>";
+
+
     let entries =
         getEntries();
 
@@ -1508,6 +1653,16 @@ function createSearchResult(
     }
 
 
+    /* 生物ボタン左側に登録色を表示 */
+
+    row.style.setProperty(
+        "--organism-color",
+        organism.color
+            ? (colorValues[organism.color] || "#cccccc")
+            : "#cccccc"
+    );
+
+
     /* 和名 */
 
     const japanese =
@@ -1534,51 +1689,6 @@ function createSearchResult(
         organism.scientificName || "";
 
     row.appendChild(scientific);
-
-
-    /* 色 */
-
-    const colorArea =
-        document.createElement("div");
-
-    colorArea.className =
-        "color-area";
-
-
-    if (organism.color) {
-
-        const circle =
-            document.createElement("span");
-
-        circle.className =
-            "color-circle";
-
-        circle.style.backgroundColor =
-            colorValues[
-                organism.color
-            ] || "#ccc";
-
-
-        const colorText =
-            document.createElement("span");
-
-        colorText.textContent =
-            organism.color;
-
-
-        colorArea.appendChild(circle);
-
-        colorArea.appendChild(colorText);
-
-    } else {
-
-        colorArea.textContent =
-            "未登録";
-
-    }
-
-
-    row.appendChild(colorArea);
 
 
     /* ボタン */
@@ -2641,91 +2751,61 @@ function editData(index) {
    削除
 ========================= */
 
-function deleteData(index) {
+async function deleteData(index) {
 
-    const organisms =
-        JSON.parse(
-            localStorage.getItem(
-                "organisms"
-            )
-        ) || [];
+    const organisms = getOrganisms();
 
-
-    const organism =
-        organisms[index];
-
+    const organism = organisms[index];
 
     if (!organism) {
-
         return;
-
     }
 
-
-    const result =
-        confirm(
-            "「" +
-            organism.japaneseName +
-            "」を削除しますか？"
-        );
-
+    const result = confirm(
+        "「" + organism.japaneseName + "」を削除しますか？"
+    );
 
     if (!result) {
-
         return;
-
     }
 
+    // まずPC側から削除
+    organisms.splice(index, 1);
 
-    organisms.splice(
-        index,
-        1
-    );
+    try {
+        setOrganisms(organisms);
+    } catch (error) {
+        console.error("local delete error:", error);
+        alert("削除に失敗しました。\n" + (error.message || error));
+        return;
+    }
 
+    // 画面をすぐ更新
+    const detail = document.getElementById("detail");
+    if (detail) detail.classList.add("hidden");
 
-    localStorage.setItem(
-        "organisms",
-        JSON.stringify(organisms)
-    );
+    const taxonomyPage = document.getElementById("taxonomyPage");
+    if (taxonomyPage) taxonomyPage.classList.add("hidden");
 
+    const distributionPage = document.getElementById("distributionPage");
+    if (distributionPage) distributionPage.classList.add("hidden");
 
-    document
-        .getElementById(
-            "detail"
-        )
-        .classList.add(
-            "hidden"
-        );
-
-
-    document
-        .getElementById(
-            "taxonomyPage"
-        )
-        .classList.add(
-            "hidden"
-        );
-
-
-    document
-        .getElementById(
-            "distributionPage"
-        )
-        .classList.add(
-            "hidden"
-        );
-
-
-    document
-        .getElementById(
-            "listArea"
-        )
-        .classList.remove(
-            "hidden"
-        );
-
+    const listArea = document.getElementById("listArea");
+    if (listArea) listArea.classList.remove("hidden");
 
     showList();
+
+    // ログイン中ならFirebaseにも反映
+    if (currentUser) {
+        const synced = await saveCloudData(true);
+
+        if (!synced) {
+            alert(
+                "PCでは削除しましたが、Firebaseへの反映に失敗しました。\n" +
+                "もう一度ログインして確認してください。"
+            );
+        }
+    }
 
 }
 
@@ -2763,14 +2843,6 @@ async function logout() {
     await signOut(auth);
 }
 
-function removePhotosForCloud(organisms) {
-    return organisms.map(function(organism) {
-        const copy = JSON.parse(JSON.stringify(organism));
-        copy.photo = "";
-        return copy;
-    });
-}
-
 async function saveCloudData(showError = false) {
 
     if (!currentUser || savingToCloud) return false;
@@ -2778,9 +2850,28 @@ async function saveCloudData(showError = false) {
     savingToCloud = true;
 
     try {
+        const organisms = getOrganisms();
+        const payload = JSON.stringify({ organisms: organisms });
+        const bytes = new Blob([payload]).size;
+
+        /* Firestoreの1MiB制限に余裕を持たせる */
+        if (bytes > 900000) {
+            document.getElementById("syncMessage").textContent =
+                "写真を含むデータが大きすぎます。";
+
+            if (showError) {
+                alert(
+                    "写真を含むデータが大きすぎるため、Firebaseへ保存できません。\n\n" +
+                    "現在のデータサイズ：約" + Math.round(bytes / 1024) + "KB\n" +
+                    "写真をさらに小さくしてください。"
+                );
+            }
+            return false;
+        }
+
         const ref = doc(db, "organisms", currentUser.uid);
         await setDoc(ref, {
-            organisms: removePhotosForCloud(getOrganisms())
+            organisms: organisms
         });
 
         document.getElementById("syncMessage").textContent =
@@ -2796,7 +2887,12 @@ async function saveCloudData(showError = false) {
             "クラウドへの保存に失敗しました（" + code + "）。";
 
         if (showError) {
-            alert("PCには保存できました。\\n\\nFirebaseへの同期だけ失敗しました。\\n\\nエラーコード：" + code + "\\n詳細：" + detail);
+            alert(
+                "PCには保存できました。\n\n" +
+                "Firebaseへの同期だけ失敗しました。\n\n" +
+                "エラーコード：" + code +
+                "\n詳細：" + detail
+            );
         }
         return false;
 
@@ -2825,10 +2921,18 @@ async function loadCloudData() {
 
             const local = getOrganisms();
 
+            /*
+             * 以前の版では写真をクラウドへ保存していなかったため、
+             * クラウド側に写真がない古いデータにはPC側の写真を引き継ぐ。
+             */
             const merged = cloud.map(function(item, index) {
                 const copy = JSON.parse(JSON.stringify(item));
 
-                if (!copy.photo && local[index] && local[index].photo) {
+                if (
+                    !copy.photo &&
+                    local[index] &&
+                    local[index].photo
+                ) {
                     copy.photo = local[index].photo;
                 }
 
@@ -2836,11 +2940,12 @@ async function loadCloudData() {
             });
 
             setOrganisms(merged);
+
+            /* PC側にしかなかった写真もFirebaseへ保存 */
             await saveCloudData();
 
         } else {
-
-            // 初回ログイン：現在のPCのデータをクラウドへ保存
+            /* 初回ログイン：現在のPCデータをFirebaseへ保存 */
             await saveCloudData();
         }
 
@@ -2850,7 +2955,13 @@ async function loadCloudData() {
     } catch (error) {
         console.error(error);
         message.textContent = "クラウドとの同期に失敗しました。";
-        alert("クラウドとの同期に失敗しました。\nインターネット接続とFirebaseの設定を確認してください。");
+        alert(
+            "クラウドとの同期に失敗しました。\n" +
+            "エラーコード：" +
+            (error && error.code ? error.code : "unknown") +
+            "\n詳細：" +
+            (error && error.message ? error.message : String(error))
+        );
     }
 }
 
