@@ -288,6 +288,250 @@ textarea {
     cursor: pointer;
 }
 
+
+/* =========================
+   スマートフォン対応（レスポンシブ）
+   既存の機能・データ処理は変更せず、
+   画面幅に合わせて表示だけを最適化
+========================= */
+
+@media (max-width: 700px) {
+
+    * {
+        box-sizing: border-box;
+    }
+
+    body {
+        padding: 8px;
+        font-size: 16px;
+        overflow-x: hidden;
+    }
+
+    .container {
+        width: 100%;
+        max-width: 100%;
+        margin: 0;
+    }
+
+    h1 {
+        font-size: 25px;
+        line-height: 1.3;
+    }
+
+    h2 {
+        font-size: 21px;
+    }
+
+    h3 {
+        font-size: 18px;
+    }
+
+    .form-area,
+    .detail-area,
+    .search-area {
+        padding: 14px;
+        margin-top: 12px;
+        border-radius: 8px;
+    }
+
+    /* 入力欄はスマホ画面いっぱいに */
+    input,
+    select,
+    textarea {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        font-size: 16px;
+    }
+
+    textarea {
+        min-height: 120px;
+    }
+
+    /* ボタンを押しやすく */
+    button {
+        min-height: 42px;
+        padding: 8px 12px;
+        margin: 3px 2px;
+        touch-action: manipulation;
+    }
+
+    /* 並び順 */
+    #sortSelect {
+        width: 100%;
+        max-width: 100%;
+    }
+
+    /* 生物一覧
+       PCでは横並び、スマホでは縦方向に切り替える */
+    .organism-row {
+        width: 100%;
+        min-width: 0 !important;
+        max-width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+        padding: 12px 10px 12px 18px !important;
+        margin-bottom: 10px;
+        overflow: hidden;
+    }
+
+    .organism-photo,
+    .no-photo {
+        width: 100px;
+        height: 100px;
+        align-self: flex-start;
+    }
+
+    .japanese-name {
+        width: 100%;
+        min-width: 0;
+        font-size: 19px;
+        line-height: 1.4;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
+    .scientific-name {
+        width: 100%;
+        min-width: 0;
+        font-size: 15px;
+        line-height: 1.4;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
+    .action-area {
+        width: 100%;
+        white-space: normal;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+
+    .action-area button {
+        flex: 1 1 30%;
+        min-width: 70px;
+    }
+
+    /* 和名・学名検索 */
+    .organism-search-box {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 4px;
+    }
+
+    .organism-search-box input {
+        width: 100%;
+        min-width: 0;
+        flex: none;
+    }
+
+    .organism-search-box button {
+        width: 100%;
+        margin: 2px 0;
+    }
+
+    /* 分布検索 */
+    .distribution-search-box {
+        padding: 12px;
+        margin: 12px 0;
+    }
+
+    .distribution-search-box input {
+        width: 100%;
+        max-width: 100%;
+        margin: 6px 0;
+    }
+
+    .distribution-search-box button {
+        width: 100%;
+        margin: 3px 0;
+    }
+
+    /* 分類ボタン */
+    #taxonomyButtons button {
+        max-width: 100%;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
+    /* 色選択 */
+    .color-buttons {
+        gap: 5px;
+    }
+
+    .color-button {
+        min-width: 70px;
+        flex: 1 1 28%;
+    }
+
+    /* 登録写真のプレビュー */
+    #photoPreview img {
+        display: block;
+        width: auto;
+        max-width: 100% !important;
+        height: auto;
+        max-height: 300px;
+        object-fit: contain;
+    }
+
+    /* 詳細画面の写真 */
+    #detailContent img {
+        display: block;
+        width: auto;
+        max-width: 100% !important;
+        height: auto;
+        max-height: 70vh;
+        object-fit: contain;
+    }
+
+    /* 分布タグ */
+    .tag {
+        max-width: 100%;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
+    .remove-tag {
+        min-height: 30px;
+        margin-left: 4px;
+    }
+
+}
+
+/* さらに小さいスマホ */
+@media (max-width: 400px) {
+
+    body {
+        padding: 6px;
+    }
+
+    .form-area,
+    .detail-area,
+    .search-area {
+        padding: 11px;
+    }
+
+    h1 {
+        font-size: 22px;
+    }
+
+    .organism-row {
+        padding-left: 16px !important;
+    }
+
+    .action-area button {
+        flex: 1 1 100%;
+    }
+
+    .color-button {
+        flex: 1 1 45%;
+    }
+}
+
 </style>
 </head>
 
