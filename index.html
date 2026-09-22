@@ -288,6 +288,265 @@ textarea {
     cursor: pointer;
 }
 
+
+/* =========================================================
+   スマホ対応：生物一覧は横長1行・和名と学名を2段表示
+   ========================================================= */
+@media (max-width: 700px) {
+
+    * {
+        box-sizing: border-box;
+    }
+
+    body {
+        padding: 8px;
+        overflow-x: hidden;
+    }
+
+    .container {
+        width: 100%;
+        max-width: 100%;
+    }
+
+    .form-area,
+    .detail-area,
+    .search-area {
+        padding: 14px;
+    }
+
+    h1 {
+        font-size: 25px;
+    }
+
+    h2 {
+        font-size: 21px;
+    }
+
+    h3 {
+        font-size: 18px;
+    }
+
+    input,
+    select,
+    textarea {
+        width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        font-size: 16px;
+    }
+
+    button {
+        min-height: 42px;
+        touch-action: manipulation;
+    }
+
+    #sortSelect {
+        width: 100%;
+        max-width: 100%;
+    }
+
+    /* 生物一覧：横長カード */
+    .organism-row {
+        width: 100%;
+        min-width: 0 !important;
+        min-height: 76px;
+        height: auto;
+        display: flex;
+        flex-direction: row !important;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 8px 8px 16px !important;
+        margin-bottom: 8px;
+        overflow: hidden !important;
+    }
+
+    /* 写真は左側に小さめ */
+    .organism-photo,
+    .organism-row .no-photo {
+        width: 64px !important;
+        height: 64px !important;
+        min-width: 64px !important;
+        flex: 0 0 64px;
+        border-radius: 6px;
+    }
+
+    /* 和名・学名を2段にするためのまとまり */
+    .organism-row .japanese-name,
+    .organism-row .scientific-name {
+        width: auto;
+        min-width: 0 !important;
+        flex: 1 1 auto;
+        overflow-wrap: anywhere;
+        word-break: break-word;
+    }
+
+    .organism-row .japanese-name {
+        font-size: 17px;
+        line-height: 1.3;
+        font-weight: bold;
+        margin: 0;
+    }
+
+    .organism-row .scientific-name {
+        font-size: 13px;
+        line-height: 1.3;
+        margin: 2px 0 0;
+    }
+
+    /*
+      JSでは和名・学名が別々のdivなので、
+      スマホではそれぞれを横並びのままにせず、
+      行全体の中央に配置する。
+    */
+    .organism-row .japanese-name {
+        margin-right: -1px;
+    }
+
+    .organism-row .action-area {
+        flex: 0 0 auto;
+        white-space: nowrap;
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 2px;
+    }
+
+    .organism-row .action-area button {
+        min-height: 38px;
+        padding: 5px 7px;
+        margin: 2px;
+        font-size: 13px;
+    }
+
+    /* 和名と学名を2段にするラッパーをJSで作らない版では、
+       見た目を崩さないため、一覧幅に余裕がある時はそのまま。
+       画面の狭い端末ではボタンを下段に回す。 */
+    @media (max-width: 430px) {
+        .organism-row {
+            flex-wrap: wrap;
+        }
+
+        .organism-row .japanese-name,
+        .organism-row .scientific-name {
+            flex: 1 1 calc(100% - 84px);
+        }
+
+        .organism-row .action-area {
+            margin-left: 74px;
+            width: calc(100% - 74px);
+        }
+
+        .organism-row .action-area button {
+            flex: 1 1 auto;
+        }
+    }
+
+    /* 検索欄 */
+    .organism-search-box {
+        display: flex;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 4px;
+    }
+
+    .organism-search-box input {
+        min-width: 0;
+        width: 100%;
+    }
+
+    .organism-search-box button {
+        width: 100%;
+        margin: 3px 0;
+    }
+
+    /* 分布検索 */
+    .distribution-search-box input {
+        width: 100%;
+        max-width: 100%;
+    }
+
+    .distribution-search-box button {
+        width: 100%;
+        margin: 3px 0;
+    }
+
+    .color-buttons {
+        gap: 4px;
+    }
+
+    .color-button {
+        min-width: 70px;
+    }
+
+    .tag {
+        max-width: 100%;
+        overflow-wrap: anywhere;
+    }
+
+    #photoPreview img,
+    #detailContent img {
+        max-width: 100% !important;
+        height: auto !important;
+    }
+}
+
+
+@media (max-width: 700px) {
+    .organism-row .organism-name-area {
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    .organism-row .organism-name-area .japanese-name,
+    .organism-row .organism-name-area .scientific-name {
+        width: 100%;
+        min-width: 0 !important;
+        flex: none;
+    }
+
+    /* 和名は途中で改行しない */
+    .organism-row .organism-name-area .japanese-name {
+        white-space: nowrap;
+        overflow: visible;
+        text-overflow: clip;
+        word-break: keep-all;
+        font-size: 16px;
+    }
+
+    .organism-row .organism-name-area .japanese-name {
+        margin: 0;
+    }
+
+    .organism-row .organism-name-area .scientific-name {
+        margin: 2px 0 0;
+    }
+
+    @media (max-width: 430px) {
+        .organism-row .organism-name-area {
+            flex: 1 1 calc(100% - 84px) !important;
+        }
+
+        .organism-row .action-area {
+            margin-left: 74px;
+            width: calc(100% - 74px);
+        }
+    }
+}
+
+
+@media (max-width: 700px) {
+    .organism-row .japanese-name {
+        white-space: nowrap !important;
+        overflow: visible;
+        text-overflow: clip;
+        word-break: keep-all !important;
+        font-size: 16px;
+    }
+}
+
 </style>
 </head>
 
@@ -331,7 +590,7 @@ textarea {
 <b>並び順：</b>
 </label>
 
-<select id="sortSelect" onchange="changeSort()">
+<select id="sortSelect">
 
 <option value="registered">
 登録順
@@ -354,6 +613,8 @@ textarea {
 </option>
 
 </select>
+
+<button type="button" onclick="applySort()">並び順を決定</button>
 
 </div>
 
@@ -693,10 +954,8 @@ import {
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
 import {
     getFirestore,
-    collection,
     doc,
     getDoc,
-    getDocs,
     setDoc
 } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
 
@@ -772,6 +1031,13 @@ const colorValues = {
 ========================= */
 
 function changeSort() {
+
+    currentSort =
+        document.getElementById("sortSelect").value;
+
+}
+
+function applySort() {
 
     currentSort =
         document.getElementById("sortSelect").value;
@@ -1658,8 +1924,19 @@ function createSearchResult(
     row.appendChild(japanese);
 
 
-    /* 学名 */
+    /* 和名・学名をまとめる */
+    const nameArea =
+        document.createElement("div");
 
+    nameArea.className =
+        "organism-name-area";
+
+    nameArea.style.flex = "1 1 auto";
+    nameArea.style.minWidth = "0";
+
+    nameArea.appendChild(japanese);
+
+    /* 学名 */
     const scientific =
         document.createElement("div");
 
@@ -1669,7 +1946,9 @@ function createSearchResult(
     scientific.textContent =
         organism.scientificName || "";
 
-    row.appendChild(scientific);
+    nameArea.appendChild(scientific);
+
+    row.appendChild(nameArea);
 
 
     /* 色 */
@@ -2914,25 +3193,10 @@ async function saveCloudData(showError = false) {
     savingToCloud = true;
 
     try {
-        const organisms = getOrganisms();
         const ref = doc(db, "organisms", currentUser.uid);
-
-        // 生物情報本体には写真を入れず、写真だけ別保存します。
         await setDoc(ref, {
-            organisms: removePhotosForCloud(organisms)
+            organisms: removePhotosForCloud(getOrganisms())
         });
-
-        // 登録済み写真をFirestoreのphotosに保存
-        const photosRef = collection(db, "organisms", currentUser.uid, "photos");
-
-        for (let i = 0; i < organisms.length; i++) {
-            const photo = organisms[i].photo || "";
-            if (!photo) continue;
-
-            await setDoc(doc(photosRef, String(i)), {
-                photo: photo
-            });
-        }
 
         document.getElementById("syncMessage").textContent =
             "クラウドと同期済みです。";
@@ -2947,7 +3211,7 @@ async function saveCloudData(showError = false) {
             "クラウドへの保存に失敗しました（" + code + "）。";
 
         if (showError) {
-            alert("PCには保存できました。\n\nFirebaseへの同期だけ失敗しました。\n\nエラーコード：" + code + "\n詳細：" + detail);
+            alert("PCには保存できました。\\n\\nFirebaseへの同期だけ失敗しました。\\n\\nエラーコード：" + code + "\\n詳細：" + detail);
         }
         return false;
 
@@ -2974,27 +3238,20 @@ async function loadCloudData() {
                 ? data.organisms
                 : [];
 
-            setOrganisms(cloud);
+            const local = getOrganisms();
 
-            // 写真だけ別に読み込みます。
-            const photosSnapshot = await getDocs(
-                collection(db, "organisms", currentUser.uid, "photos")
-            );
+            const merged = cloud.map(function(item, index) {
+                const copy = JSON.parse(JSON.stringify(item));
 
-            const merged = cloud.map(function(item) {
-                return JSON.parse(JSON.stringify(item));
-            });
-
-            photosSnapshot.forEach(function(photoDoc) {
-                const index = Number(photoDoc.id);
-                const photoData = photoDoc.data();
-
-                if (Number.isInteger(index) && index >= 0 && index < merged.length && photoData.photo) {
-                    merged[index].photo = photoData.photo;
+                if (!copy.photo && local[index] && local[index].photo) {
+                    copy.photo = local[index].photo;
                 }
+
+                return copy;
             });
 
             setOrganisms(merged);
+            await saveCloudData();
 
         } else {
 
@@ -3022,6 +3279,7 @@ window.addCustomDistribution = addCustomDistribution;
 window.searchDistributions = searchDistributions;
 window.clearDistributionSearch = clearDistributionSearch;
 window.previewPhoto = previewPhoto;
+window.applySort = applySort;
 
 // 保存ボタンを確実にJavaScriptへ接続
 window.addEventListener("DOMContentLoaded", function() {
