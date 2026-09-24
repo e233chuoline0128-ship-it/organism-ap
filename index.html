@@ -3181,7 +3181,7 @@ async function logout() {
 function removePhotosForCloud(organisms) {
     return organisms.map(function(organism) {
         const copy = JSON.parse(JSON.stringify(organism));
-        copy.photo = "";
+        // 写真もクラウドへ保存する
         return copy;
     });
 }
