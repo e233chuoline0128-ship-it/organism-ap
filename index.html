@@ -1246,82 +1246,167 @@ function compressImage(
 
     reader.onload = function(e) {
 
-        const img =
-            new Image();
-
-        img.onload = function() {
-
-            const maxSize = 1200;
-
-            let width = img.width;
-
-            let height = img.height;
-
-
-            if (width > height) {
-
-                if (width > maxSize) {
-
-                    height =
-                        height * maxSize / width;
-
-                    width = maxSize;
-
-                }
-
-            } else {
-
-                if (height > maxSize) {
-
-                    width =
-                        width * maxSize / height;
-
-                    height = maxSize;
-
-                }
-
+        compressDataUrl(
+            e.target.result,
+            function(compressed) {
+                callback(compressed);
             }
-
-
-            const canvas =
-                document.createElement("canvas");
-
-            canvas.width = width;
-
-            canvas.height = height;
-
-
-            const ctx =
-                canvas.getContext("2d");
-
-            ctx.drawImage(
-                img,
-                0,
-                0,
-                width,
-                height
-            );
-
-
-            const compressed =
-                canvas.toDataURL(
-                    "image/jpeg",
-                    0.7
-                );
-
-
-            callback(compressed);
-
-        };
-
-
-        img.src = e.target.result;
+        );
 
     };
 
-
     reader.readAsDataURL(file);
 
+}
+
+
+/* =========================
+   写真データを大幅圧縮
+   ・長辺最大800px
+   ・JPEG品質50%
+   ・登録済み写真にも使用
+========================= */
+
+function compressDataUrl(
+    dataUrl,
+    callback
+) {
+
+    if (!dataUrl || typeof dataUrl !== "string") {
+        callback(dataUrl || "");
+        return;
+    }
+
+    const img = new Image();
+
+    img.onload = function() {
+
+        const maxSize = 800;
+
+        let width = img.naturalWidth || img.width;
+        let height = img.naturalHeight || img.height;
+
+        if (!width || !height) {
+            callback(dataUrl);
+            return;
+        }
+
+        if (width > height) {
+
+            if (width > maxSize) {
+                height = Math.round(
+                    height * maxSize / width
+                );
+                width = maxSize;
+            }
+
+        } else {
+
+            if (height > maxSize) {
+                width = Math.round(
+                    width * maxSize / height
+                );
+                height = maxSize;
+            }
+
+        }
+
+        const canvas =
+            document.createElement("canvas");
+
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx =
+            canvas.getContext("2d", {
+                alpha: false
+            });
+
+        ctx.drawImage(
+            img,
+            0,
+            0,
+            width,
+            height
+        );
+
+        const compressed =
+            canvas.toDataURL(
+                "image/jpeg",
+                0.50
+            );
+
+        callback(compressed);
+
+    };
+
+    img.onerror = function() {
+        /* 壊れた画像などは元データを保持 */
+        callback(dataUrl);
+    };
+
+    img.src = dataUrl;
+
+}
+
+
+/* =========================
+   既に登録されている写真を
+   一度だけ大幅圧縮
+========================= */
+
+async function compressStoredPhotos(organisms) {
+
+    const result = Array.isArray(organisms)
+        ? organisms.map(function(item) {
+            return JSON.parse(JSON.stringify(item));
+        })
+        : [];
+
+    let changed = false;
+
+    for (let i = 0; i < result.length; i++) {
+
+        const organism = result[i];
+
+        if (
+            !organism ||
+            !organism.photo ||
+            organism.photoCompressionVersion === 2
+        ) {
+            continue;
+        }
+
+        const originalPhoto = organism.photo;
+
+        const compressedPhoto =
+            await new Promise(function(resolve) {
+
+                compressDataUrl(
+                    originalPhoto,
+                    function(compressed) {
+                        resolve(compressed);
+                    }
+                );
+
+            });
+
+        if (
+            compressedPhoto &&
+            compressedPhoto !== originalPhoto
+        ) {
+            organism.photo = compressedPhoto;
+            changed = true;
+        }
+
+        /* 同じ写真を毎回再圧縮して画質が落ちないようにする */
+        organism.photoCompressionVersion = 2;
+    }
+
+    return {
+        organisms: result,
+        changed: changed
+    };
 }
 
 
@@ -1616,7 +1701,10 @@ function saveData() {
             ).value.trim(),
 
         photo:
-            selectedPhoto
+            selectedPhoto,
+
+        /* 写真圧縮バージョン */
+        photoCompressionVersion: 2
 
     };
 
@@ -3193,13 +3281,20 @@ async function saveCloudData(showError = false) {
     savingToCloud = true;
 
     try {
+
         const ref = doc(db, "organisms", currentUser.uid);
+
+        /*
+           保存前に、写真圧縮済みデータだけをクラウドへ送る。
+           通常の保存では既に圧縮済みなので追加処理はしない。
+        */
         await setDoc(ref, {
             organisms: removePhotosForCloud(getOrganisms())
         });
 
         document.getElementById("syncMessage").textContent =
             "クラウドと同期済みです。";
+
         return true;
 
     } catch (error) {
@@ -3228,44 +3323,97 @@ async function loadCloudData() {
     message.textContent = "クラウドからデータを読み込んでいます…";
 
     try {
+
         const ref = doc(db, "organisms", currentUser.uid);
         const snapshot = await getDoc(ref);
+
+        let organisms = [];
 
         if (snapshot.exists()) {
 
             const data = snapshot.data();
+
             const cloud = Array.isArray(data.organisms)
                 ? data.organisms
                 : [];
 
             const local = getOrganisms();
 
-            const merged = cloud.map(function(item, index) {
-                const copy = JSON.parse(JSON.stringify(item));
+            organisms = cloud.map(function(item, index) {
 
-                if (!copy.photo && local[index] && local[index].photo) {
+                const copy =
+                    JSON.parse(JSON.stringify(item));
+
+                /*
+                   クラウド側に写真が無い場合は、
+                   この端末に残っている写真を引き継ぐ
+                */
+                if (
+                    !copy.photo &&
+                    local[index] &&
+                    local[index].photo
+                ) {
                     copy.photo = local[index].photo;
+                    copy.photoCompressionVersion =
+                        local[index].photoCompressionVersion || 0;
                 }
 
                 return copy;
-            });
 
-            setOrganisms(merged);
-            await saveCloudData();
+            });
 
         } else {
 
-            // 初回ログイン：現在のPCのデータをクラウドへ保存
-            await saveCloudData();
+            /*
+               初回ログイン：
+               現在のPCのデータをそのまま読み込み、
+               下の処理で写真を圧縮してからクラウドへ保存
+            */
+            organisms = getOrganisms();
+
         }
 
-        message.textContent = "クラウドと同期済みです。";
+        /*
+           ここが今回の重要部分。
+           すでに登録されている写真も一度だけ圧縮する。
+           圧縮後のデータをPC側にも保存する。
+        */
+        const compressionResult =
+            await compressStoredPhotos(organisms);
+
+        organisms = compressionResult.organisms;
+
+        setOrganisms(organisms);
+
+        /*
+           写真を圧縮した場合も含めて、
+           圧縮済みデータをFirebaseへ保存する。
+        */
+        await saveCloudData();
+
+        message.textContent =
+            compressionResult.changed
+            ? "写真を軽量化してクラウドと同期済みです。"
+            : "クラウドと同期済みです。";
+
         showList();
 
     } catch (error) {
+
         console.error(error);
-        message.textContent = "クラウドとの同期に失敗しました。";
-        alert("クラウドとの同期に失敗しました。\nインターネット接続とFirebaseの設定を確認してください。");
+
+        message.textContent =
+            "クラウドとの同期に失敗しました。";
+
+        alert(
+            "クラウドとの同期に失敗しました。\n" +
+            "インターネット接続とFirebaseの設定を確認してください。\n\n" +
+            "エラー：" +
+            (error && error.message
+                ? error.message
+                : String(error))
+        );
+
     }
 }
 
