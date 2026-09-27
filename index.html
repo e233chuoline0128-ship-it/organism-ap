@@ -669,6 +669,15 @@ onchange="previewPhoto()"
 
 <div id="photoPreview"></div>
 
+<div class="external-photo-box" style="margin-top:12px;padding:12px;border:1px solid #ddd;border-radius:8px;">
+<strong>写真を別の場所に保存する場合</strong>
+<p style="margin:6px 0;font-size:14px;">写真を800px・JPEG品質50%に圧縮してから外部保存できます。</p>
+<button type="button" onclick="openExternalPhotoHost()">8uploadを開く</button>
+<button type="button" onclick="downloadCompressedPhoto()">圧縮した写真を保存</button>
+<label for="externalPhotoUrl" style="display:block;margin-top:10px;">外部保存した写真のURL</label>
+<input type="url" id="externalPhotoUrl" placeholder="https://8upload.com/...jpg" style="width:100%;box-sizing:border-box;">
+<p style="font-size:13px;margin:6px 0 0;">URLを入力した場合、写真本体はFirebaseに保存せず、URLだけを保存します。</p>
+</div>
 
 <h3>和名</h3>
 
@@ -1233,6 +1242,33 @@ function previewPhoto() {
 
 
 /* =========================
+   外部写真保存
+========================= */
+function openExternalPhotoHost() {
+    window.open("https://8upload.com/", "_blank", "noopener,noreferrer");
+}
+
+function downloadCompressedPhoto() {
+    const fileInput = document.getElementById("photo");
+    const file = fileInput && fileInput.files ? fileInput.files[0] : null;
+    if (!file) { alert("先に写真を選択してください。"); return; }
+    compressImage(file, function(compressed) {
+        if (!compressed || compressed.indexOf("data:image/") !== 0) { alert("写真の圧縮に失敗しました。"); return; }
+        const binary = atob(compressed.split(",")[1]);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+        const blob = new Blob([bytes], {type:"image/jpeg"});
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = (file.name || "photo").replace(/\.[^.]+$/, "") + "_compressed.jpg";
+        document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(function(){ URL.revokeObjectURL(url); }, 1000);
+        alert("圧縮した写真を保存しました。\n\n8uploadへアップロードして、表示されたDirect-Linkを『外部保存した写真のURL』へ貼り付けてください。");
+    });
+}
+
+/* =========================
    写真を圧縮
 ========================= */
 
@@ -1372,6 +1408,8 @@ async function compressStoredPhotos(organisms) {
         if (
             !organism ||
             !organism.photo ||
+            organism.photoStorage === "external" ||
+            /^https?:\/\//i.test(organism.photo) ||
             organism.photoCompressionVersion === 2
         ) {
             continue;
@@ -1578,6 +1616,9 @@ function showForm() {
     document.getElementById("photo")
         .value = "";
 
+    const externalPhotoUrlInput = document.getElementById("externalPhotoUrl");
+    if (externalPhotoUrlInput) externalPhotoUrlInput.value = "";
+
     document.getElementById("photoPreview")
         .innerHTML = "";
 
@@ -1703,6 +1744,9 @@ function saveData() {
         photo:
             selectedPhoto,
 
+        photoStorage:
+            "local",
+
         /* 写真圧縮バージョン */
         photoCompressionVersion: 2
 
@@ -1714,31 +1758,43 @@ function saveData() {
             "photo"
         ).files[0];
 
+    const externalPhotoUrlInput =
+        document.getElementById("externalPhotoUrl");
+
+    const externalPhotoUrl =
+        externalPhotoUrlInput
+        ? externalPhotoUrlInput.value.trim()
+        : "";
+
+    if (externalPhotoUrl) {
+
+        if (!/^https?:\/\//i.test(externalPhotoUrl)) {
+            alert("写真URLは https:// から始まるURLを入力してください。");
+            return;
+        }
+
+        organism.photo = externalPhotoUrl;
+        organism.photoStorage = "external";
+        organism.photoCompressionVersion = 2;
+
+        actuallySave(organism);
+        return;
+    }
 
     if (photoFile) {
 
         compressImage(
             photoFile,
             function(compressedPhoto) {
-
-                organism.photo =
-                    compressedPhoto;
-
-                actuallySave(
-                    organism
-                );
-
+                organism.photo = compressedPhoto;
+                organism.photoStorage = "local";
+                actuallySave(organism);
             }
         );
 
     } else {
-
-        actuallySave(
-            organism
-        );
-
+        actuallySave(organism);
     }
-
 }
 
 
@@ -2952,6 +3008,11 @@ function editData(index) {
 
     selectedPhoto =
         organism.photo || "";
+
+    const externalPhotoUrlInput = document.getElementById("externalPhotoUrl");
+    if (externalPhotoUrlInput) {
+        externalPhotoUrlInput.value = organism.photoStorage === "external" ? (organism.photo || "") : "";
+    }
 
 
     selectedColor =
