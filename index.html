@@ -888,6 +888,28 @@ onclick="addCustomDistribution()">
     <input type="number" id="observationDay" min="1" max="31" placeholder="例：12">
     <label for="observationPlace">観察場所</label>
     <input type="text" id="observationPlace" placeholder="例：東京都八王子市">
+    <label for="observationWeather">天気</label>
+    <select id="observationWeather">
+        <option value="">選択しない</option>
+        <option value="晴れ">☀️ 晴れ</option>
+        <option value="曇り">☁️ 曇り</option>
+        <option value="雨">☂️ 雨</option>
+        <option value="大雨">☂️ 大雨</option>
+        <option value="雪">☃️ 雪</option>
+        <option value="大雪">☃️ 大雪</option>
+        <option value="雷雨">⚡ 雷雨</option>
+    </select>
+    <label for="observationTemperature">気温（℃）</label>
+    <input type="number" id="observationTemperature" step="0.1" placeholder="例：23.5">
+    <label for="observationSex">性別</label>
+    <select id="observationSex">
+        <option value="">選択しない</option>
+        <option value="オス">♂ オス</option>
+        <option value="メス">♀ メス</option>
+        <option value="不明">不明</option>
+    </select>
+    <label for="observationNotes">備考</label>
+    <textarea id="observationNotes" placeholder="観察時の状況など"></textarea>
     <button type="button" onclick="addObservationRecord()">＋ 観察記録を追加</button>
 </div>
 <h4>登録する観察記録</h4>
@@ -1627,8 +1649,9 @@ function showForm() {
         });
 
 
-    ["observationYear", "observationMonth", "observationDay", "observationPlace"].forEach(function(id) {
-        document.getElementById(id).value = "";
+    ["observationYear", "observationMonth", "observationDay", "observationPlace", "observationWeather", "observationTemperature", "observationSex", "observationNotes"].forEach(function(id) {
+        const field = document.getElementById(id);
+        if (field) field.value = "";
     });
     showSelectedObservations();
     showSelectedDistributions();
@@ -1657,7 +1680,16 @@ function addObservationRecord() {
     const month = Number(document.getElementById("observationMonth").value);
     const day = Number(document.getElementById("observationDay").value);
     const place = document.getElementById("observationPlace").value.trim();
+    const weather = document.getElementById("observationWeather").value;
+    const temperatureValue = document.getElementById("observationTemperature").value;
+    const temperature = temperatureValue === "" ? "" : Number(temperatureValue);
+    const sex = document.getElementById("observationSex").value;
+    const notes = document.getElementById("observationNotes").value.trim();
 
+    if (temperatureValue !== "" && !Number.isFinite(temperature)) {
+        alert("気温は数値で入力してください。");
+        return;
+    }
     if (!Number.isInteger(year) || year < 1 || year > 9999 ||
         !Number.isInteger(month) || month < 1 || month > 12 ||
         !Number.isInteger(day) || day < 1 || day > 31) {
@@ -1674,13 +1706,14 @@ function addObservationRecord() {
         return;
     }
 
-    selectedObservations.push({ year: year, month: month, day: day, place: place });
+    selectedObservations.push({ year: year, month: month, day: day, place: place, weather: weather, temperature: temperature, sex: sex, notes: notes });
     selectedObservations.sort(function(a, b) {
         return a.year - b.year || a.month - b.month || a.day - b.day;
     });
 
-    ["observationYear", "observationMonth", "observationDay", "observationPlace"].forEach(function(id) {
-        document.getElementById(id).value = "";
+    ["observationYear", "observationMonth", "observationDay", "observationPlace", "observationWeather", "observationTemperature", "observationSex", "observationNotes"].forEach(function(id) {
+        const field = document.getElementById(id);
+        if (field) field.value = "";
     });
     showSelectedObservations();
 }
@@ -1700,7 +1733,7 @@ function showSelectedObservations() {
     table.style.borderCollapse = "collapse";
 
     const header = document.createElement("tr");
-    ["年", "月日", "観察場所", "削除"].forEach(function(label) {
+    ["年", "月日", "観察場所", "天気", "気温（℃）", "性別", "備考", "削除"].forEach(function(label) {
         const th = document.createElement("th");
         th.textContent = label;
         th.style.borderBottom = "1px solid #ccc";
@@ -1714,7 +1747,11 @@ function showSelectedObservations() {
         const values = [
             record.year + "年",
             record.month + "月" + record.day + "日",
-            record.place
+            record.place,
+            ({"晴れ":"☀️", "曇り":"☁️", "雨":"☂️", "大雨":"☂️", "雪":"☃️", "大雪":"☃️", "雷雨":"⚡"}[record.weather] || "") + (record.weather || ""),
+            record.temperature === "" || record.temperature == null ? "" : record.temperature + "℃",
+            ({"オス":"♂", "メス":"♀", "不明":"不明"}[record.sex] || record.sex || ""),
+            record.notes || ""
         ];
         values.forEach(function(value) {
             const td = document.createElement("td");
@@ -1832,7 +1869,11 @@ function saveData() {
                     year: record.year,
                     month: record.month,
                     day: record.day,
-                    place: record.place
+                    place: record.place,
+                    weather: record.weather || "",
+                    temperature: record.temperature === "" || record.temperature == null ? "" : Number(record.temperature),
+                    sex: record.sex || "",
+                    notes: record.notes || ""
                 };
             }),
 
@@ -2195,6 +2236,27 @@ function createSearchResult(
         organism.scientificName || "";
 
     nameArea.appendChild(scientific);
+
+    /* 最も古い観察記録の日付と場所 */
+    const earliestObservation = Array.isArray(organism.observations)
+        ? organism.observations.filter(function(record) {
+            return Number(record.year) > 0 && Number(record.month) > 0 && Number(record.day) > 0;
+        }).slice().sort(function(a, b) {
+            return Number(a.year) - Number(b.year) ||
+                Number(a.month) - Number(b.month) ||
+                Number(a.day) - Number(b.day);
+        })[0]
+        : null;
+    if (earliestObservation) {
+        const firstRecord = document.createElement("div");
+        firstRecord.className = "first-observation-summary";
+        firstRecord.style.fontSize = "0.88em";
+        firstRecord.style.marginTop = "4px";
+        firstRecord.textContent = "最初に記録した日：" +
+            earliestObservation.year + "年" + earliestObservation.month + "月" +
+            earliestObservation.day + "日　" + (earliestObservation.place || "場所未登録");
+        nameArea.appendChild(firstRecord);
+    }
 
     row.appendChild(nameArea);
 
@@ -2878,7 +2940,7 @@ function showDetail(index) {
         table.style.borderCollapse = "collapse";
 
         const header = document.createElement("tr");
-        ["年", "月日", "観察場所"].forEach(function(label) {
+        ["年", "月日", "観察場所", "天気", "気温（℃）", "性別", "備考"].forEach(function(label) {
             const th = document.createElement("th");
             th.textContent = label;
             th.style.textAlign = "left";
@@ -2893,7 +2955,11 @@ function showDetail(index) {
             [
                 (record.year || "") + "年",
                 (record.month || "") + "月" + (record.day || "") + "日",
-                record.place || "未登録"
+                record.place || "未登録",
+                ({"晴れ":"☀️", "曇り":"☁️", "雨":"☂️", "大雨":"☂️", "雪":"☃️", "大雪":"☃️", "雷雨":"⚡"}[record.weather] || "") + (record.weather || ""),
+                record.temperature === "" || record.temperature == null ? "" : record.temperature + "℃",
+                ({"オス":"♂", "メス":"♀", "不明":"不明"}[record.sex] || record.sex || ""),
+                record.notes || ""
             ].forEach(function(value) {
                 const td = document.createElement("td");
                 td.textContent = value;
@@ -3292,7 +3358,11 @@ function editData(index) {
                 year: Number(record.year),
                 month: Number(record.month),
                 day: Number(record.day),
-                place: record.place || ""
+                place: record.place || "",
+                weather: record.weather || "",
+                temperature: record.temperature == null ? "" : record.temperature,
+                sex: record.sex || "",
+                notes: record.notes || ""
             };
         })
         : [];
